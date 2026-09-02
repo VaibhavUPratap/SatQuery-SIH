@@ -6,6 +6,12 @@ class Settings(BaseSettings):
     API_TITLE: str = "SatQuery AI API"
     API_VERSION: str = "v1"
     DEBUG: bool = True
+    SATQUERY_AUTH_REQUIRED: bool = False
+    SATQUERY_DEMO_USERNAME: str = "analyst.demo"
+    SATQUERY_DEMO_PASSWORD: str = "satquery-demo"
+    MAX_UPLOAD_BYTES: int = 100 * 1024 * 1024
+    MAX_IMAGE_PIXELS: int = 100_000_000
+    MAX_QUEUED_JOBS: int = 20
     
     # Model Configuration
     VQA_MODEL_NAME: str = "Salesforce/blip-vqa-base"

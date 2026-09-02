@@ -2,23 +2,16 @@ import logging
 import os
 import uuid
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status, Depends
 
 from backend.agent.graph import agent_graph
 from backend.agent.state import AgentState
 from backend.config import settings
+from backend.api.auth import current_user
+from backend.api.upload import persist_upload
 
 logger = logging.getLogger("satquery.api.agent")
 router = APIRouter()
-
-
-async def _persist(file: UploadFile, index: int) -> str:
-    extension = os.path.splitext(file.filename or "")[1] or ".tiff"
-    path = os.path.join(settings.UPLOAD_DIR, f"{uuid.uuid4()}_agent_{index}{extension}")
-    with open(path, "wb") as output:
-        while part := await file.read(1024 * 1024):
-            output.write(part)
-    return path
 
 
 @router.post("/agent", status_code=status.HTTP_200_OK)
@@ -29,17 +22,18 @@ async def execute_agent(
     analysis_type: str = Form("auto"),
     include_report: bool = Form(False),
     thread_id: str | None = Form(None),
+    user: str = Depends(current_user),
 ):
     """Execute LangGraph StateGraph agent for remote sensing image analysis."""
     if not query.strip():
         raise HTTPException(status_code=400, detail="Query cannot be empty.")
     paths = []
     try:
-        first = await _persist(file_1, 1)
+        first = await persist_upload(file_1, "agent_1")
         paths.append(first)
         second = None
         if file_2:
-            second = await _persist(file_2, 2)
+            second = await persist_upload(file_2, "agent_2")
             paths.append(second)
 
         session_id = thread_id or str(uuid.uuid4())

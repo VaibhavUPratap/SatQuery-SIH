@@ -451,6 +451,9 @@ class SatQueryStateGraph:
 
     def get_state_history(self, thread_id: str) -> List[AgentState]:
         """Retrieve execution state history for a given thread/session."""
+        if self._compiled_graph is not None:
+            config = {"configurable": {"thread_id": thread_id}}
+            return [checkpoint.values for checkpoint in self._compiled_graph.get_state_history(config)]
         return self._checkpoints.get(thread_id, [])
 
 

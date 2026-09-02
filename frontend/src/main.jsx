@@ -4,6 +4,7 @@ import { ImageOverlay, MapContainer, Rectangle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './styles.css';
+import NewApp from './App.jsx';
 
 const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api/v1';
 const prompts = ['Describe this scene', 'Highlight water and built-up regions', 'What changed between dates?'];
@@ -89,4 +90,4 @@ function App() {
   </main>;
 }
 
-createRoot(document.getElementById('root')).render(<App />);
+createRoot(document.getElementById('root')).render(<NewApp />);

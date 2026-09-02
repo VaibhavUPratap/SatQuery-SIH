@@ -1,6 +1,5 @@
 import logging
 import os
-import uuid
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
@@ -8,23 +7,10 @@ from backend.agent.tool_registry import tool_registry
 from backend.config import settings
 from backend.preprocessing.registration import ImageRegistration
 from backend.validation.validator import InputValidator
+from backend.api.upload import persist_upload
 
 logger = logging.getLogger("satquery.api.optical_sar")
 router = APIRouter()
-
-
-async def _save_upload(upload: UploadFile, modality: str) -> str:
-    extension = os.path.splitext(upload.filename or "")[1] or ".tiff"
-    path = os.path.join(settings.UPLOAD_DIR, f"{uuid.uuid4()}_{modality}{extension}")
-    try:
-        with open(path, "wb") as buffer:
-            while chunk := await upload.read(1024 * 1024):
-                buffer.write(chunk)
-        return path
-    except Exception:
-        if os.path.exists(path):
-            os.remove(path)
-        raise
 
 
 @router.post("/optical-sar", status_code=status.HTTP_200_OK)
@@ -39,9 +25,9 @@ async def execute_optical_sar(
 
     paths = []
     try:
-        optical_path = await _save_upload(optical_file, "optical")
+        optical_path = await persist_upload(optical_file, "optical")
         paths.append(optical_path)
-        sar_path = await _save_upload(sar_file, "sar")
+        sar_path = await persist_upload(sar_file, "sar")
         paths.append(sar_path)
         optical_ok, optical_error, optical_metadata = InputValidator.validate_image(optical_path)
         sar_ok, sar_error, sar_metadata = InputValidator.validate_image(sar_path)

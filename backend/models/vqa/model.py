@@ -164,12 +164,12 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
             # Heuristics: extract RGB channels
             r, g, b = img_arr[:, :, 0], img_arr[:, :, 1], img_arr[:, :, 2]
 
-            # Green (vegetation) index: Green value greater than red and blue
-            green_mask = (g > (r.astype(int) + 10)) & (g > (b.astype(int) + 10))
+            # Use relative colour dominance so compressed or darker imagery is
+            # not rejected solely because its channel values are low.
+            green_mask = (g > (r.astype(int) * 1.05 + 4)) & (g > (b.astype(int) * 1.05 + 4))
             green_ratio = float(np.sum(green_mask) / total_pixels)
 
-            # Blue (water) index: Blue value greater than red and green, and not too bright/white
-            blue_mask = (b > (r.astype(int) + 15)) & (b > (g.astype(int) + 15)) & (b < 230)
+            blue_mask = (b > (r.astype(int) * 1.10 + 6)) & (b > (g.astype(int) * 1.05 + 6)) & (b < 245)
             blue_ratio = float(np.sum(blue_mask) / total_pixels)
 
             # Gray / structural (built-up) index: Low variance between channels, moderate brightness
@@ -180,8 +180,19 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
             # Built-up areas have gray colors, high texture
             gray_mask = (diff_rg < 15) & (diff_gb < 15) & (mean_val > 80) & (mean_val < 200)
             gray_ratio = float(np.sum(gray_mask) / total_pixels)
+
+            # Small isolated pixels are noise. Connected components provide a
+            # useful approximate object count for explicit counting questions.
+            object_count = 0
+            try:
+                import cv2
+                structure_mask = (gray_mask.astype(np.uint8) * 255)
+                components, _, _, _ = cv2.connectedComponentsWithStats(structure_mask, 8)
+                object_count = max(0, sum(1 for area in _[:, cv2.CC_STAT_AREA][1:] if area >= max(8, total_pixels * 0.002)))
+            except Exception:
+                object_count = max(0, int(gray_ratio * 20))
         except Exception as e:
-            green_ratio, blue_ratio, gray_ratio = 0.25, 0.05, 0.10
+            green_ratio, blue_ratio, gray_ratio, object_count = 0.25, 0.05, 0.10, 0
             total_pixels = 0
             logger.warning(f"Fallback pixel analysis failed: {str(e)}")
 
@@ -221,9 +232,12 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
                 answer = "No prominent built-up areas or city structures are visible in the image."
                 
         elif any(kw in q_lower for kw in ["count", "how many"]):
-            # Simulate a counting heuristic
-            estimated_objects = int((gray_ratio * 150) + 2)
-            answer = f"There are approximately {estimated_objects} primary structures or features visible in the image."
+            answer = f"Approximately {max(1, object_count)} distinct built-up regions are detected; this is an image-analysis estimate, not a cadastral count."
+
+        elif any(kw in q_lower for kw in ["dominant", "main", "majority"]):
+            ratios = {"vegetation": green_ratio, "water": blue_ratio, "built-up structure": gray_ratio}
+            label, ratio = max(ratios.items(), key=lambda item: item[1])
+            answer = f"The dominant detected class is {label}, covering approximately {ratio * 100:.1f}% of the image."
             
         else:
             answer = f"Remote-sensing spectral assessment indicates {green_ratio*100:.1f}% vegetation index, {blue_ratio*100:.1f}% water index, and {gray_ratio*100:.1f}% built-up structural index."
@@ -248,7 +262,8 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
                 "spectral_metrics": {
                     "vegetation_ratio": round(green_ratio, 4),
                     "water_ratio": round(blue_ratio, 4),
-                    "structural_ratio": round(gray_ratio, 4)
+                    "structural_ratio": round(gray_ratio, 4),
+                    "estimated_structure_count": object_count,
                 },
                 "image_resolution": f"{width}x{height} pixels",
                 "total_analyzed_pixels": total_pixels,

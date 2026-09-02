@@ -2,13 +2,13 @@
 
 import logging
 import os
-import uuid
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
 from backend.agent.tool_registry import tool_registry
 from backend.config import settings
 from backend.validation.validator import InputValidator
+from backend.api.upload import persist_upload
 
 logger = logging.getLogger("satquery.api.land_cover")
 router = APIRouter()
@@ -17,12 +17,9 @@ router = APIRouter()
 @router.post("/land-cover", status_code=status.HTTP_200_OK)
 async def classify_land_cover(file: UploadFile = File(..., description="14-band Sentinel-1/Sentinel-2 GeoTIFF")):
     """Classify a reBEN-compatible Sentinel-1/Sentinel-2 image chip."""
-    extension = os.path.splitext(file.filename or "")[1].lower() or ".tiff"
-    path = os.path.join(settings.UPLOAD_DIR, f"{uuid.uuid4()}_land_cover{extension}")
+    path = None
     try:
-        with open(path, "wb") as output:
-            while part := await file.read(1024 * 1024):
-                output.write(part)
+        path = await persist_upload(file, "land_cover")
         valid, error, metadata = InputValidator.validate_image(path)
         if not valid:
             raise HTTPException(status_code=400, detail=f"Image validation failed: {error}")
@@ -50,7 +47,7 @@ async def classify_land_cover(file: UploadFile = File(..., description="14-band 
         logger.exception("BigEarthNet inference failed")
         raise HTTPException(status_code=500, detail=f"Land-cover classification failed: {exc}") from exc
     finally:
-        if os.path.exists(path):
+        if path and os.path.exists(path):
             try:
                 os.remove(path)
             except OSError:

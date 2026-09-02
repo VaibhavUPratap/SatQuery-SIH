@@ -608,9 +608,9 @@ The model-backed smoke test requires cached BLIP base weights and checks both di
 
 Known test caveats:
 
-- `tests/verify_agent.py` can fail its history assertion when native LangGraph is active because its `get_state_history()` check reads the fallback runner's dictionary rather than native `MemorySaver` state.
+- `tests/verify_agent.py` now passes with native LangGraph because `get_state_history()` reads `MemorySaver` state.
 - `tests/verify_evaluation.py` is not directly executable unless the project root is added to `sys.path`.
-- The frontend production build was not verified in the recorded environment because Node/npm dependencies were unavailable.
+- The frontend production build is verified with Node `v24.20.0` and npm `11.19.0`; interactive browser testing still requires a running API.
 
 ---
 
@@ -736,7 +736,7 @@ Completed at prototype level. Mask overlays and PDF export exist. The PDF is tex
 
 ### Phase 8: React dashboard
 
-Implemented. Uploads, paired images, results, trace, evidence display, and report export are present. A production build still requires Node/npm dependencies and verification.
+Implemented. Uploads, paired images, results, trace, evidence display, report export, and the production build are verified. Interactive browser testing still requires a running API.
 
 ### Phase 9: Benchmark evaluation
 
@@ -773,7 +773,7 @@ Partially complete. Accuracy, IoU, and F1 runners exist and execute, but the ava
 14. **Synthetic map coordinates:** Leaflet uses fixed `L.CRS.Simple` bounds rather than geographic coordinates.
 15. **Process-memory persistence:** Agent state is not durable across process restarts.
 16. **Native history mismatch:** The history helper does not currently unify fallback and native LangGraph checkpoint history.
-17. **Frontend build verification:** Node/npm dependencies were unavailable in the recorded environment.
+17. **Frontend browser verification:** The production build passes; interactive browser verification still requires a running API.
 18. **Training record discrepancy:** The selected run records batch size `1`, while its command specifies `--batch-size 2`; reproducibility documentation should clarify the effective value.
 
 ---
@@ -817,6 +817,153 @@ The working checkout was force-synchronized with `origin/main` before this docum
 
 ---
 
+## 21. Phase 0 Audit: UI Modernization Readiness
+
+This audit was completed before any UI, authentication, upload-security, or concurrency implementation. The existing ML and backend behavior remains unchanged.
+
+### 21.1 Current frontend structure
+
+The frontend is currently a single React component in `frontend/src/main.jsx`, styled by `frontend/src/styles.css`. It provides:
+
+- A top bar with SatQuery branding and workspace status.
+- Two upload cards: primary image and optional comparison image.
+- Client-side previews for browser-readable images.
+- A query textarea and preset prompt buttons.
+- One `Run analysis` action that posts directly to `/api/v1/agent`.
+- An inline result panel showing answer, task, confidence, and trace details.
+- A Leaflet evidence viewer with returned overlay and bounding boxes.
+- A PDF download action.
+
+There is no frontend router, login page, page-level workflow state, central API client, persisted user session, dedicated validation view, dedicated classifier view, or dedicated report view. The current UI therefore needs a navigation/state architecture before visual refinement can be safely layered on top.
+
+### 21.2 Current backend structure
+
+`backend/api/main.py` creates the FastAPI application and registers these routers under `/api/v1`:
+
+- `/vqa`
+- `/caption`
+- `/grounding`
+- `/change`
+- `/optical-sar`
+- `/land-cover`
+- `/agent`
+
+The specialist implementations are registered through `backend/agent/tool_registry.py`. The agent workflow is implemented in `backend/agent/graph.py` and follows `validate_inputs` -> `classify_intent` -> specialist execution -> `fuse_evidence`. `backend/validation/validator.py` and `backend/preprocessing/registration.py` own the existing input and pair checks. `backend/evidence/report.py` owns PDF generation.
+
+### 21.3 Reusable implementation surfaces
+
+The following should be reused rather than duplicated in later phases:
+
+- `POST /api/v1/agent` as the primary UI integration endpoint.
+- The `FormData` field names `file_1`, `file_2`, `query`, `analysis_type`, `include_report`, and `thread_id`.
+- The response fields `answer`, `confidence`, `route`, `evidence`, `execution_trace`, `overlay_b64`, `annotated_image_b64`, `change_map_b64`, `bounding_boxes`, `predictions`, `scores`, and `report_pdf_b64`.
+- Existing direct specialist routes for diagnostics and regression testing.
+- `InputValidator` and `ImageRegistration` as the existing validation owners.
+- `agent_graph` and `TaskClassifier` as the existing routing owners.
+- `generate_pdf_report` as the existing report generator.
+- The current Leaflet evidence rendering approach for prototype spatial visualization.
+- Existing specialist and agent verification scripts as regression tests.
+
+### 21.4 Existing upload flow
+
+For `/api/v1/agent`, `backend/api/endpoints/agent.py` writes each `UploadFile` into the shared `settings.UPLOAD_DIR`. Each name is generated from a UUID plus an index and the original extension. The agent receives server-side paths, runs synchronously in the request, and the route removes every path in a `finally` block after success or failure.
+
+The direct specialist endpoints use the same general pattern, with route-specific UUID filenames. The browser never receives the filesystem path. However, the shared directory is not partitioned by user, session, or job, and there is no configurable upload-size limit before writing the file.
+
+### 21.5 Existing validation flow
+
+Validation occurs after upload persistence, inside `validate_inputs_node`. The current validator checks the extension, file existence, readability, dimensions, band count, and available raster metadata. Pair validation checks readability and equal dimensions, with a separate optical/SAR path that permits different band counts.
+
+The current validation result is converted into an agent error response containing `status`, `detail`, route information, and trace steps. Detailed UI-ready check objects such as format status, finite-value status, datatype status, and task-compatibility status are not currently returned. The frontend must therefore initially render the actual high-level trace and error fields, unless a later backend validation contract is deliberately added.
+
+The current implementation does not yet enforce all requested Phase 3 controls: MIME consistency, upload-size limits, maximum dimensions, explicit NaN/Inf checks, task-specific band contracts for every route, processing timeouts, or concurrency limits.
+
+### 21.6 Existing agent flow and safe trace boundary
+
+The agent exposes high-level node records such as validation, intent classification, and specialist execution. This is appropriate for a user-facing timeline. It does not expose hidden chain-of-thought. The existing trace includes selected task, route reason, specialist execution information, and model/fallback indicators where the specialist supplies them.
+
+The frontend should display only these emitted records. It must not synthesize additional completed backend events or infer confidence values that the server did not return.
+
+### 21.7 Existing result and report flow
+
+`fuse_evidence_node` assembles the final response. It selects the answer, route, confidence, pair metadata, evidence, execution trace, and task-specific visual artifacts. When `include_report=true`, it adds a base64 PDF generated in memory by `generate_pdf_report`.
+
+The current PDF includes textual status, query, answer or caption, confidence, change summary, and execution trace. It does not include source images, overlays, timestamps, job IDs, or authentication data. The frontend decodes `report_pdf_b64` and downloads it directly; there is no separate report route or server-side report identifier.
+
+### 21.8 Authentication and session findings
+
+No authentication, login endpoint, password store, token, cookie, logout endpoint, authorization dependency, or user/session database exists in the repository. The existing `thread_id` is an agent checkpoint key, not an authenticated session identity. A client can supply it, and the current native LangGraph memory is process-local.
+
+Therefore the current system must not be described as authenticated or multi-user isolated. Phase 2 must add authentication and ownership checks before any client-controlled session identifier is treated as authorization.
+
+### 21.9 Security weaknesses identified
+
+- CORS is unrestricted with `allow_origins=["*"]`.
+- Debug mode defaults to `true`.
+- There is no authentication or authorization.
+- There is no user/session ownership model for uploads, results, reports, or thread IDs.
+- Upload extension validation occurs after the file is written.
+- There is no upload-size or pixel-dimension limit.
+- The broad agent exception response includes the exception text in the HTTP detail.
+- Temporary paths are controlled by the server, but the shared upload directory has no per-job or per-user isolation.
+- PDF output currently has no sensitive-data filtering contract beyond the fields selected by the generator.
+
+These are audit findings, not claims that the current prototype is unsafe in every deployment. They define the work required before presenting the system as a protected multi-user service.
+
+### 21.10 Multi-user and concurrency weaknesses
+
+- Inference is synchronous inside FastAPI request handling.
+- Specialist models are process-level singletons, but concurrency behavior is not explicitly controlled.
+- There is no job queue, worker pool, admission limit, queue limit, or timeout.
+- There is no durable result store or job status API.
+- Temporary files are deleted at request completion, so long-running or resumable jobs have no current result lifecycle.
+- Native LangGraph uses in-memory `MemorySaver`; the fallback runner uses a separate in-memory dictionary.
+- A supplied `thread_id` can collide logically between callers because there is no authenticated ownership boundary.
+
+Phase 5 should introduce the smallest reliable job/isolation model justified by the hackathon environment, while preserving the existing specialist registry and model-loading behavior.
+
+### 21.11 Recommended Phase 1 files
+
+Recommended frontend changes:
+
+- Modify `frontend/src/main.jsx` to introduce page/workflow state and reusable page components.
+- Modify `frontend/src/styles.css` to provide the institutional multi-page visual system.
+- Modify `frontend/package.json` only if a router dependency is needed; a lightweight state-driven workflow may avoid adding a dependency.
+- Add a frontend API/service module, for example `frontend/src/api/client.js`, so request construction and response handling are not duplicated.
+- Add page/component modules such as `frontend/src/pages/LoginPage.jsx`, `UploadPage.jsx`, `ValidationPage.jsx`, `ClassificationPage.jsx`, `AnalysisPage.jsx`, and `ReportPage.jsx` if the project remains componentized by file.
+
+Recommended backend changes for Phase 1 are none unless the current response needs a narrowly defined frontend integration field. The existing `/agent` contract should remain the source of truth.
+
+### 21.12 Regression risks
+
+- Changing `FormData` names or omitting `include_report=true` will break the agent route or report download.
+- Treating `thread_id` as a secure session before Phase 2 would create a false security boundary.
+- Fabricating validation steps or classifier confidence would make the UI misleading because the backend does not emit all requested checks or a classifier confidence value.
+- Adding direct specialist calls from the frontend would duplicate routing logic and bypass the existing agent contract.
+- Rewriting model or registry code during UI work could break VQA adapter loading and BigEarthNet integration.
+- Assuming every result contains an overlay, boxes, or predictions will create task-specific rendering errors.
+- Running a browser preview for TIFF as if it were a normal image will fail; the current UI correctly treats TIFF as server-processed.
+- A new router or page refresh behavior could lose in-progress files unless state persistence is intentionally designed.
+- UI tests that require model downloads may be slow or unavailable; backend regression tests should remain independently runnable.
+
+### 21.13 Phase 1 implementation plan
+
+Phase 1 should be implemented only after this audit is accepted:
+
+1. Add a lightweight frontend workflow state machine with stages `LOGIN`, `DATA`, `VALIDATION`, `CLASSIFICATION`, `ANALYSIS`, and `REPORT`.
+2. Add a prototype login screen with explicitly labeled demo credentials and no government-authentication claim. Keep it cosmetic until Phase 2 adds real authentication.
+3. Move the existing upload/query form into the DATA stage without changing accepted file types or API field names.
+4. Render validation using actual server response and trace data, clearly labeling unavailable checks rather than inventing results.
+5. Render task classification from `route.task`, `route.reason`, `confidence`, and emitted execution trace fields.
+6. Move result visualization and task-specific artifacts into the ANALYSIS stage.
+7. Move PDF details and download into the REPORT stage.
+8. Add backward navigation only where it cannot accidentally resend or discard an active request.
+9. Run the frontend build and the existing backend verification scripts before committing the phase.
+
+Phase 1 must not modify specialist models, task routing, validation algorithms, upload persistence semantics, or PDF internals. Authentication, stronger upload validation, and concurrency belong to later phases.
+
+---
+
 ## 20. Primary References
 
 - `README.md` - Quick-start, project structure, and API overview.
@@ -828,3 +975,67 @@ The working checkout was force-synchronized with `origin/main` before this docum
 - `Docs/Execution_Checkpoints.md` - Delivery schedule, rules, and checkpoint status.
 - `Docs/training_runs/2026-08-24-rsvqa-adapter.md` - Selected CUDA training run.
 - `Docs/training_runs/2026-08-25-rsvqa-augmented-cpu.md` - Retained CPU experiment.
+
+---
+
+## 22. Controlled UI and Security Implementation Record
+
+The phased modernization work began after the Phase 0 audit.
+
+### Completed in this pass
+
+- Added `frontend/src/App.jsx` with staged Login, Data, Validation, Classification, Analysis, and Report views.
+- Added `frontend/src/api.js` to centralize login, agent submission, and PDF download behavior.
+- Added `frontend/src/app.css` with responsive institutional styling.
+- Updated the frontend entry point to render the staged application while leaving the legacy component source intact for rollback/reference.
+- Added `POST /api/v1/auth/login` and `POST /api/v1/auth/logout`.
+- Added an environment-configured prototype bearer-token session store in `backend/api/auth.py`.
+- Added `SATQUERY_AUTH_REQUIRED`, `MAX_UPLOAD_BYTES`, and `MAX_IMAGE_PIXELS` settings.
+- Added agent upload-size enforcement and immediate cleanup when the limit is exceeded.
+- Added `backend/api/upload.py` as a shared bounded upload helper for agent, change, and optical/SAR routes.
+- Added raster pixel-limit and NaN/Inf checks to `InputValidator`.
+- Applied the opt-in authentication dependency to all specialist and agent routers.
+- Added controlled in-process job submission/status endpoints with bounded worker concurrency and owner checks.
+- Updated the dashboard to submit jobs and poll real `QUEUED`, `PROCESSING`, `COMPLETED`, and `FAILED` states.
+- Added report generation timestamps and route/job context.
+
+### Current task completion state
+
+- Multi-page UI: implemented.
+- Prototype authentication and route protection: implemented and opt-in through `SATQUERY_AUTH_REQUIRED`.
+- Shared upload limits, extension checks, cleanup, raster pixel limits, and finite-value checks: implemented across all direct specialist, paired, and agent upload paths.
+- Agent trace visualization: implemented using emitted backend events only.
+- Controlled analysis jobs: implemented as an in-process bounded worker pool with owner-scoped status access.
+- Report/dashboard polish: implemented at prototype level with timestamped report context and job-backed UI.
+- Full audit/regression execution: dependency checks, backend API verification, static checks, and frontend production build pass; interactive browser testing still needs a running API.
+- Connected the frontend login to the backend login endpoint and forwards the bearer token with agent requests.
+
+### Compatibility and verification status
+
+- Existing specialist model implementations were not modified.
+- Existing routing and result field names were preserved.
+- Python `compileall` passed for the backend after these changes.
+- `pip check` passed and core imports for FastAPI, ConfigILM, Rasterio, Torch, Transformers, and LangGraph passed in `.venv-gpu`.
+- `pytest -q` passed with 3 tests.
+- `tests/verify_vqa.py`, `tests/verify_phase2.py`, `tests/verify_phase3.py`, `tests/verify_phase4.py`, `tests/verify_agent.py`, and `tests/verify_evaluation.py` passed.
+- Authentication smoke testing passed for unauthorized access, login, authorized lookup, and logout.
+- `git diff --check` passed.
+- Frontend production build passed with Node `v24.20.0` and npm `11.19.0`.
+- End-to-end browser smoke test passed against the running API: login -> upload -> job polling -> validation -> classification -> analysis -> report, with the PDF button enabled.
+- Improved fallback VQA calibration with relative colour dominance, dominant-class answers, and connected-region structure estimates.
+- Added `datasets/download_online_samples.py` for Wikimedia Commons earth-observation images and `tests/verify_online_vqa.py` for online/local VQA smoke checks.
+
+### Remaining work before declaring all phases complete
+
+The following are not claimed as complete until dependencies are installed and behavior is tested:
+
+- Authentication enforcement is opt-in through `SATQUERY_AUTH_REQUIRED`; default compatibility mode remains unauthenticated so the existing tests and clients do not break.
+- The token store is process-memory based and does not yet provide durable multi-user session storage or cross-process isolation.
+- Direct specialist routes now use the same opt-in auth dependency; protection remains disabled by default for compatibility.
+- Uploaded files and reports are not yet associated with an authenticated owner or durable job record.
+- MIME consistency, finite-value checks, maximum dimensions, task-specific validation contracts, timeouts, and queue limits are not fully implemented.
+- Background jobs and concurrency isolation are not implemented.
+- The frontend build and browser workflow have not been verified.
+- Automated authentication, cross-user isolation, upload-security, cleanup, and concurrency tests still need to be added and executed.
+
+The model-backed VQA smoke test and official BigEarthNet inference remain cache/data dependent and were not run in this pass. The current environment reset both Hugging Face and Wikimedia requests, so no online images were downloaded; on a connected machine run `python datasets/download_online_samples.py --count 5`, followed by `python tests/verify_online_vqa.py`. No benchmark number or security claim should be upgraded beyond the checks listed above.

@@ -1,6 +1,5 @@
 import logging
 import os
-import uuid
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
@@ -8,24 +7,10 @@ from backend.agent.tool_registry import tool_registry
 from backend.config import settings
 from backend.preprocessing.registration import ImageRegistration
 from backend.validation.validator import InputValidator
+from backend.api.upload import persist_upload
 
 logger = logging.getLogger("satquery.api.change")
 router = APIRouter()
-
-
-async def _save_upload(upload: UploadFile, label: str) -> str:
-    """Persist one upload for the duration of paired-image analysis."""
-    extension = os.path.splitext(upload.filename or "")[1] or ".tiff"
-    path = os.path.join(settings.UPLOAD_DIR, f"{uuid.uuid4()}_{label}{extension}")
-    try:
-        with open(path, "wb") as buffer:
-            while content := await upload.read(1024 * 1024):
-                buffer.write(content)
-    except Exception:
-        if os.path.exists(path):
-            os.remove(path)
-        raise
-    return path
 
 
 @router.post("/change", status_code=status.HTTP_200_OK)
@@ -43,9 +28,9 @@ async def execute_change(
 
     paths = []
     try:
-        path_t1 = await _save_upload(file_t1, "t1")
+        path_t1 = await persist_upload(file_t1, "change_t1")
         paths.append(path_t1)
-        path_t2 = await _save_upload(file_t2, "t2")
+        path_t2 = await persist_upload(file_t2, "change_t2")
         paths.append(path_t2)
 
         valid_t1, error_t1, metadata_t1 = InputValidator.validate_image(path_t1)

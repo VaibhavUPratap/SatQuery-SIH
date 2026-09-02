@@ -2,6 +2,7 @@
 import base64
 import io
 import textwrap
+from datetime import datetime, timezone
 from typing import Any, Dict
 
 from PIL import Image, ImageDraw, ImageFont
@@ -15,7 +16,7 @@ def generate_pdf_report(title: str, result: Dict[str, Any]) -> str:
     y = 55
     draw.text((55, y), title, fill="black", font=font)
     y += 45
-    fields = ("status", "query", "answer", "caption", "summary", "confidence", "change_summary")
+    fields = ("status", "query", "answer", "caption", "summary", "confidence", "route", "job_id", "change_summary")
     for field in fields:
         value = result.get(field)
         if value is None:
@@ -24,6 +25,9 @@ def generate_pdf_report(title: str, result: Dict[str, Any]) -> str:
             draw.text((55, y), line, fill="black", font=font)
             y += 20
         y += 10
+    timestamp = datetime.now(timezone.utc).isoformat()
+    draw.text((55, y), f"generated_at: {timestamp}", fill="black", font=font)
+    y += 30
     trace = result.get("execution_trace", {})
     for line in textwrap.wrap(f"execution_trace: {trace}", width=145):
         draw.text((55, y), line, fill="black", font=font)
