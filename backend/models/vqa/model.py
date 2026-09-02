@@ -116,13 +116,18 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
                 )
                 
             answer = self.processor.decode(outputs[0], skip_special_tokens=True)
+            guarded_answer, visual_evidence = self._apply_evidence_guard(image, question, answer)
             elapsed = time.time() - start_time
             
             # Simple heuristic confidence score for standard model output
             confidence = 0.88 if len(answer) > 0 else 0.50
+            if visual_evidence["answer_status"] == "abstained":
+                confidence = 0.35
+            elif visual_evidence["evidence_guard_applied"]:
+                confidence = 0.82
             
             return {
-                "answer": answer,
+                "answer": guarded_answer,
                 "confidence": confidence,
                 "evidence": {
                     "model_source": "local fine-tuned LoRA adapter + cached Hugging Face base model",
@@ -131,6 +136,7 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
                     "device": self.device,
                     "input_representation": "RGB; saved BLIP processor resize/normalization",
                     "inference_mode": "model",
+                    **visual_evidence,
                 },
                 "execution_trace": {
                     "task": "Visual Question Answering (VQA)",
@@ -149,6 +155,48 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
         except Exception as e:
             logger.error(f"Inference failed, using fallback: {str(e)}")
             return self._run_fallback(image_path, question, start_time, error_msg=str(e))
+
+    @staticmethod
+    def _apply_evidence_guard(image: Image.Image, question: str, answer: str):
+        """Prevent high-signal model answers from contradicting image evidence."""
+        pixels = np.asarray(image.convert("RGB"), dtype=np.int16)
+        red, green, blue = pixels[:, :, 0], pixels[:, :, 1], pixels[:, :, 2]
+        vegetation = float(np.mean((green > red * 1.05 + 4) & (green > blue * 1.05 + 4)))
+        water = float(np.mean((blue > red * 1.10 + 6) & (blue > green * 1.05 + 6) & (blue < 245)))
+        structural = float(np.mean((np.abs(red - green) < 15) & (np.abs(green - blue) < 15) & (((red + green + blue) / 3) > 80) & (((red + green + blue) / 3) < 200)))
+        lower = question.lower()
+        guarded = answer
+        corrected = False
+        answer_status = "model"
+        exact_count = any(word in lower for word in ("count", "how many", "number of", "amount of"))
+        shape_specific = any(word in lower for word in ("circular", "square", "rectangular", "round"))
+        if exact_count:
+            guarded = "I cannot reliably determine an exact object count from this RGB image alone."
+            corrected = True
+            answer_status = "abstained"
+        elif any(word in lower for word in ("water", "river", "lake", "ocean", "sea")) and not shape_specific and water >= 0.03:
+            if any(word in answer.lower() for word in ("no", "not", "none")):
+                guarded = f"Yes, water is visible and covers approximately {water * 100:.1f}% of the image."
+                corrected = True
+                answer_status = "evidence_corrected"
+        elif any(word in lower for word in ("vegetation", "forest", "green", "agriculture", "crop")) and vegetation >= 0.05:
+            if len(answer.split()) <= 3 or any(word in answer.lower() for word in ("no", "not", "none")):
+                guarded = f"Yes, vegetation is visible and covers approximately {vegetation * 100:.1f}% of the image."
+                corrected = True
+                answer_status = "evidence_corrected"
+        elif any(word in lower for word in ("built-up", "urban", "building", "city", "road", "infrastructure")) and structural >= 0.05:
+            if len(answer.split()) <= 3 or any(word in answer.lower() for word in ("no", "not", "none")):
+                guarded = f"Built-up or structural features cover approximately {structural * 100:.1f}% of the image."
+                corrected = True
+                answer_status = "evidence_corrected"
+        elif any(word in lower for word in ("dominant", "main", "majority", "land cover", "describe", "scene")):
+            labels = [(vegetation, "vegetation"), (water, "water"), (structural, "built-up structure")]
+            ratio, label = max(labels)
+            if ratio >= 0.05:
+                guarded = f"The scene is primarily {label}, covering approximately {ratio * 100:.1f}% of the image."
+                corrected = True
+                answer_status = "evidence_corrected"
+        return guarded, {"raw_model_answer": answer, "answer_status": answer_status, "evidence_guard_applied": corrected, "visual_metrics": {"vegetation_ratio": round(vegetation, 4), "water_ratio": round(water, 4), "structural_ratio": round(structural, 4)}}
 
     def _run_fallback(self, image_path: str, question: str, start_time: float, error_msg: str = None) -> Dict[str, Any]:
         """
@@ -199,7 +247,12 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
         q_lower = question.lower()
         
         # Formulate answer based on query keywords and pixel distributions
-        if any(kw in q_lower for kw in ["land cover", "visible", "what is this", "describe", "scene"]):
+        exact_count = any(kw in q_lower for kw in ["count", "how many", "number of", "amount of"])
+        answer_status = "fallback"
+        if exact_count:
+            answer = "I cannot reliably determine an exact object count from this RGB image alone."
+            answer_status = "abstained"
+        elif any(kw in q_lower for kw in ["land cover", "visible", "what is this", "describe", "scene"]):
             land_types = []
             if green_ratio > 0.20:
                 land_types.append(f"dense vegetation/forest covering {green_ratio*100:.1f}% of the area")
@@ -231,9 +284,6 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
             else:
                 answer = "No prominent built-up areas or city structures are visible in the image."
                 
-        elif any(kw in q_lower for kw in ["count", "how many"]):
-            answer = f"Approximately {max(1, object_count)} distinct built-up regions are detected; this is an image-analysis estimate, not a cadastral count."
-
         elif any(kw in q_lower for kw in ["dominant", "main", "majority"]):
             ratios = {"vegetation": green_ratio, "water": blue_ratio, "built-up structure": gray_ratio}
             label, ratio = max(ratios.items(), key=lambda item: item[1])
@@ -242,7 +292,7 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
         else:
             answer = f"Remote-sensing spectral assessment indicates {green_ratio*100:.1f}% vegetation index, {blue_ratio*100:.1f}% water index, and {gray_ratio*100:.1f}% built-up structural index."
 
-        confidence = float(np.clip(0.70 + (green_ratio * 0.15) + (blue_ratio * 0.10), 0.65, 0.95))
+        confidence = 0.35 if answer_status == "abstained" else float(np.clip(0.70 + (green_ratio * 0.15) + (blue_ratio * 0.10), 0.65, 0.95))
         elapsed = time.time() - start_time
 
         trace_info = {
@@ -251,6 +301,7 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
             "execution_time_seconds": round(elapsed, 4),
             "fallback_active": True,
             "inference_mode": "fallback",
+            "answer_status": answer_status,
         }
         if error_msg:
             trace_info["hf_model_error"] = error_msg

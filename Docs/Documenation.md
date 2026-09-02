@@ -1023,7 +1023,15 @@ The phased modernization work began after the Phase 0 audit.
 - Frontend production build passed with Node `v24.20.0` and npm `11.19.0`.
 - End-to-end browser smoke test passed against the running API: login -> upload -> job polling -> validation -> classification -> analysis -> report, with the PDF button enabled.
 - Improved fallback VQA calibration with relative colour dominance, dominant-class answers, and connected-region structure estimates.
+- Added an auditable model-output evidence guard that corrects high-signal contradictions for water, vegetation, built-up, and dominant-class questions while preserving the raw adapter answer in evidence.
 - Added `datasets/download_online_samples.py` for Wikimedia Commons earth-observation images and `tests/verify_online_vqa.py` for online/local VQA smoke checks.
+- Added focused regression tests in `tests/test_vqa_evidence_guard.py` for contradictory and consistent model answers.
+- Re-verified the BLIP + LoRA adapter on CUDA: model-backed smoke test passes and the adapter is genuinely loaded, but the 10-row holdout audit shows only `6/10` exact matches before safety abstentions and `4/10` exact matches after abstaining on unsupported exact-count questions. This confirms the underlying adapter is undertrained for dense counting/geometry questions, rather than silently falling back.
+- Audited all specialist contracts: explicit task/image-count mismatches are rejected, unsupported grounding targets return no fabricated boxes, direct change specialists reject mismatched dimensions instead of resizing silently, and incomplete BigEarthNet checkpoints fail fast.
+- Land-cover endpoint was exercised with the available 12-band sample and correctly returned `503` because the `reben_publication` module is not importable in the current environment; no unreliable prediction was produced.
+- Full deterministic specialist, agent, evaluation, model-backed VQA, and contract test suites pass after the audit fixes.
+- Final all-tool audit passed: 8 pytest tests, VQA, captioning/grounding, change, optical/SAR, agent, evaluation, learned VQA, Python compilation, static diagnostics, and frontend production build.
+- Expert audit fixes also reject single-image/paired-task mismatches, reject unsupported grounding targets without fabricated boxes, fail closed on unavailable BigEarthNet dependencies, and replace unsupported change-cause wording with analyst-confirmable spectral candidates.
 
 ### Remaining work before declaring all phases complete
 
@@ -1038,4 +1046,4 @@ The following are not claimed as complete until dependencies are installed and b
 - The frontend build and browser workflow have not been verified.
 - Automated authentication, cross-user isolation, upload-security, cleanup, and concurrency tests still need to be added and executed.
 
-The model-backed VQA smoke test and official BigEarthNet inference remain cache/data dependent and were not run in this pass. The current environment reset both Hugging Face and Wikimedia requests, so no online images were downloaded; on a connected machine run `python datasets/download_online_samples.py --count 5`, followed by `python tests/verify_online_vqa.py`. No benchmark number or security claim should be upgraded beyond the checks listed above.
+The model-backed VQA smoke test passed with the local adapter and CUDA. Official BigEarthNet inference remains dependent on an importable reBEN checkout and model assets. The current environment reset both Hugging Face and Wikimedia requests, so no online images were downloaded; on a connected machine run `python datasets/download_online_samples.py --count 5`, followed by `python tests/verify_online_vqa.py`. The evidence guard improves high-signal contradictions, exposes provenance, and refuses unsupported counts, but does not replace retraining. The original `0.50` training-run benchmark remains unchanged and no perfect-VQA claim is made.

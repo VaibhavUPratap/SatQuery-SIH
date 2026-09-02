@@ -132,7 +132,7 @@ class BigEarthNetLandCoverModel(BaseSpecialistModel):
         if unexpected:
             logger.warning("Unexpected keys in checkpoint (ignored): %s", unexpected[:5])
         if missing:
-            logger.warning("Missing keys in checkpoint: %s", missing[:5])
+            raise RuntimeError(f"BigEarthNet checkpoint is incomplete; missing {len(missing)} model keys.")
 
         self._model = classifier.to(self._device).eval()
         logger.info("Loaded BigEarthNet ConvMixer checkpoint from %s", self.model_id)
