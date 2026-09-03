@@ -27,6 +27,8 @@ async def execute_grounding(
     file_path = None
     try:
         file_path = await persist_upload(file, "grounding")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to write uploaded file: {str(e)}")
         if file_path and os.path.exists(file_path):
@@ -46,35 +48,35 @@ async def execute_grounding(
             detail=f"Image validation failed: {error_msg}"
         )
 
-    # Fetch tool from registry
     grounding_tool = tool_registry.get_tool("grounding")
     if not grounding_tool:
         if file_path and os.path.exists(file_path):
             os.remove(file_path)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Grounding specialist tool is not registered in the system registry."
+            detail="Grounding specialist tool is not registered."
         )
 
     try:
-        # Run tool
         result = grounding_tool.run({
             "image_path": file_path,
             "query": query
         })
-        
-        # Inject metadata
         result["evidence"]["image_metadata"] = metadata
         result["query"] = query
         result["status"] = "success"
-        
         return result
-        
+    except ValueError as e:
+        logger.warning(f"Grounding input rejected: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e)
+        )
     except Exception as e:
         logger.error(f"Error during Grounding execution: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Grounding execution failed: {str(e)}"
+            detail=f"Inference execution failed: {str(e)}"
         )
     finally:
         if file_path and os.path.exists(file_path):

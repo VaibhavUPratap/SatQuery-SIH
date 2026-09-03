@@ -1,36 +1,54 @@
 from pathlib import Path
-
 from PIL import Image
 
 from backend.models.vqa.model import RemoteSensingVQAModel
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_evidence_guard_corrects_water_contradiction():
-    model = RemoteSensingVQAModel()
+def test_sanity_layer_validates_clean_answer():
+    """Verify that clean model predictions pass validation and retain visual spectral metrics."""
     with Image.open(ROOT / "datasets/samples/lake_suburb.png") as image:
-        answer, evidence = model._apply_evidence_guard(image, "Is there water in this image?", "no")
-    assert answer.startswith("Yes, water is visible")
-    assert evidence["evidence_guard_applied"] is True
-    assert evidence["answer_status"] == "evidence_corrected"
+        answer, confidence, evidence = RemoteSensingVQAModel._validate_and_sanitize_output(
+            "rural", "Is it a rural or an urban area", image
+        )
+    assert answer == "rural"
+    assert evidence["validation_status"] == "validated"
     assert evidence["visual_metrics"]["water_ratio"] > 0.03
+    assert confidence >= 0.75
 
 
-def test_evidence_guard_abstains_on_exact_counts():
-    model = RemoteSensingVQAModel()
+def test_sanity_layer_catches_empty_and_garbage():
+    """Verify that empty, pure punctuation, or repetitive loop outputs return the standard refusal string."""
     with Image.open(ROOT / "datasets/samples/lake_suburb.png") as image:
-        answer, evidence = model._apply_evidence_guard(image, "How many buildings are visible?", "174")
-    assert "cannot reliably determine" in answer
-    assert evidence["evidence_guard_applied"] is True
-    assert evidence["answer_status"] == "abstained"
+        # Empty output
+        ans_empty, conf_empty, ev_empty = RemoteSensingVQAModel._validate_and_sanitize_output(
+            "", "What is visible?", image
+        )
+        assert ans_empty == "Unable to determine a reliable answer from the provided image."
+        assert ev_empty["validation_status"] == "unreliable_empty"
+
+        # Pure punctuation output
+        ans_punct, conf_punct, ev_punct = RemoteSensingVQAModel._validate_and_sanitize_output(
+            "???", "What is visible?", image
+        )
+        assert ans_punct == "Unable to determine a reliable answer from the provided image."
+        assert ev_punct["validation_status"] == "unreliable_punctuation"
+
+        # Repetitive loop output
+        ans_loop, conf_loop, ev_loop = RemoteSensingVQAModel._validate_and_sanitize_output(
+            "water water water", "What is visible?", image
+        )
+        assert ans_loop == "Unable to determine a reliable answer from the provided image."
+        assert ev_loop["validation_status"] == "unreliable_repetition"
 
 
-def test_evidence_guard_preserves_shape_question():
-    model = RemoteSensingVQAModel()
+def test_sanity_layer_catches_excessive_length():
+    """Verify that runaway generation exceeding length bounds is flagged."""
+    long_gibberish = " ".join(["building"] * 30)
     with Image.open(ROOT / "datasets/samples/lake_suburb.png") as image:
-        answer, evidence = model._apply_evidence_guard(image, "Is there a circular water area?", "no")
-    assert answer == "no"
-    assert evidence["evidence_guard_applied"] is False
-    assert evidence["answer_status"] == "model"
+        answer, confidence, evidence = RemoteSensingVQAModel._validate_and_sanitize_output(
+            long_gibberish, "How many buildings?", image
+        )
+    assert answer == "Unable to determine a reliable answer from the provided image."
+    assert evidence["validation_status"] == "unreliable_length"

@@ -19,6 +19,8 @@ async def execute_caption(
     file_path = None
     try:
         file_path = await persist_upload(file, "caption")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to write uploaded file: {str(e)}")
         if file_path and os.path.exists(file_path):
@@ -38,31 +40,34 @@ async def execute_caption(
             detail=f"Image validation failed: {error_msg}"
         )
 
-    # Fetch tool from registry
+    # Fetch tool
     caption_tool = tool_registry.get_tool("caption")
     if not caption_tool:
         if file_path and os.path.exists(file_path):
             os.remove(file_path)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Caption specialist tool is not registered in the system registry."
+            detail="Caption specialist tool is not registered."
         )
 
     try:
-        # Run tool
-        result = caption_tool.run({"image_path": file_path})
-        
-        # Inject metadata
+        result = caption_tool.run({
+            "image_path": file_path
+        })
         result["evidence"]["image_metadata"] = metadata
         result["status"] = "success"
-        
         return result
-        
+    except ValueError as e:
+        logger.warning(f"Caption input rejected: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e)
+        )
     except Exception as e:
         logger.error(f"Error during Caption execution: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Captioning execution failed: {str(e)}"
+            detail=f"Inference execution failed: {str(e)}"
         )
     finally:
         if file_path and os.path.exists(file_path):

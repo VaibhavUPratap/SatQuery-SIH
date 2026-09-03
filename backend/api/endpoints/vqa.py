@@ -28,6 +28,8 @@ async def execute_vqa(
     file_path = None
     try:
         file_path = await persist_upload(file, "vqa")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to write uploaded file: {str(e)}")
         if file_path and os.path.exists(file_path):
@@ -86,9 +88,6 @@ async def execute_vqa(
             detail=f"Inference execution failed: {str(e)}"
         )
     finally:
-        # Optional: delete file after run to prevent storage build up
-        # For trace/evidence purposes, in a full app we'd keep it or upload to storage.
-        # Let's delete it here to keep local run clean.
         if file_path and os.path.exists(file_path):
             try:
                 os.remove(file_path)

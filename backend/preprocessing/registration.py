@@ -1,15 +1,20 @@
 import os
 import logging
 from typing import Tuple, Dict, Any
-import numpy as np
 from PIL import Image
+
+try:
+    import rasterio
+    HAS_RASTERIO = True
+except ImportError:
+    HAS_RASTERIO = False
 
 logger = logging.getLogger("satquery.preprocessing.registration")
 
 class ImageRegistration:
     """
     Handles spatial alignment validation and preprocessing for bi-temporal
-    and cross-modal image pairs.
+    and cross-modal optical/SAR image pairs.
     """
 
     @staticmethod
@@ -20,8 +25,8 @@ class ImageRegistration:
         
         Checks:
         - Both files exist and are readable.
-        - Both images have the same dimensions (width, height).
-        - Both images have compatible channel counts.
+        - Both images have matching spatial dimensions (width, height).
+        - CRS compatibility if geospatial metadata is present.
         
         Returns:
             Tuple of (is_valid, error_message, metadata).
@@ -37,7 +42,7 @@ class ImageRegistration:
         except Exception as e:
             return False, f"Failed to open images: {str(e)}", {}
 
-        metadata = {
+        metadata: Dict[str, Any] = {
             "image_a": {
                 "width": img_a.width,
                 "height": img_a.height,
@@ -59,6 +64,22 @@ class ImageRegistration:
                 f"Image B is {img_b.width}x{img_b.height}. "
                 f"Images must have identical dimensions for paired analysis."
             ), metadata
+
+        # Check CRS compatibility with rasterio if available
+        if HAS_RASTERIO:
+            ext_a = os.path.splitext(image_path_a)[1].lower()
+            ext_b = os.path.splitext(image_path_b)[1].lower()
+            if ext_a in {".tif", ".tiff"} and ext_b in {".tif", ".tiff"}:
+                try:
+                    with rasterio.open(image_path_a) as src_a, rasterio.open(image_path_b) as src_b:
+                        crs_a = str(src_a.crs) if src_a.crs else None
+                        crs_b = str(src_b.crs) if src_b.crs else None
+                        metadata["image_a"]["crs"] = crs_a
+                        metadata["image_b"]["crs"] = crs_b
+                        if crs_a and crs_b and crs_a != crs_b:
+                            return False, f"Coordinate Reference System (CRS) mismatch: Image A is {crs_a}, Image B is {crs_b}.", metadata
+                except Exception:
+                    pass
 
         metadata["dimensions_match"] = True
         metadata["spatial_correspondence"] = True
@@ -82,7 +103,6 @@ class ImageRegistration:
         )
         img_b_resized = img_b.resize(img_a.size, Image.LANCZOS)
 
-        # Save resized image alongside the original
         base, ext = os.path.splitext(image_path_b)
         resized_path = f"{base}_resized{ext}"
         img_b_resized.save(resized_path)
@@ -93,17 +113,19 @@ class ImageRegistration:
     def validate_optical_sar_pair(
         optical_path: str, sar_path: str
     ) -> Tuple[bool, str, Dict[str, Any]]:
-        """Validate a co-registered optical/SAR pair for fusion.
+        """Validate a co-registered optical/SAR pair for multi-sensor fusion.
 
-        Pixel-wise fusion needs images that cover the same grid. Different
-        channel counts are expected (RGB optical versus single-band SAR), so
-        only readability and spatial dimensions are enforced here.
+        Pixel-wise fusion requires images that cover the same spatial extent and grid.
+        Returns 'Optical and SAR inputs are not spatially compatible.' if spatial dimensions
+        or CRS do not match.
         """
         is_valid, error, metadata = ImageRegistration.validate_pair(optical_path, sar_path)
         if not is_valid:
-            return is_valid, error, metadata
+            # Enforce exact standard error message on spatial incompatibility
+            return False, "Optical and SAR inputs are not spatially compatible.", metadata
 
         metadata["pair_type"] = "optical_sar"
-        metadata["optical_expected_bands"] = "3 or more"
-        metadata["sar_expected_bands"] = "1 or more"
+        metadata["optical_expected_bands"] = "3 or more (RGB/Multispectral)"
+        metadata["sar_expected_bands"] = "1 or more (VV/VH Backscatter)"
+        metadata["spatial_alignment"] = "Co-registered"
         return True, "", metadata
