@@ -86,6 +86,8 @@ def validate_inputs_node(state: AgentState) -> Dict[str, Any]:
     return {
         "is_valid": True,
         "error_message": None,
+        "meta_1": meta_1,
+        "meta_2": meta_2 if file_2 else None,
         "pair_metadata": pair_metadata,
         "execution_trace": trace + [trace_entry],
     }
@@ -293,6 +295,11 @@ def fuse_evidence_node(state: AgentState) -> Dict[str, Any]:
         "pair_metadata": state.get("pair_metadata"),
         "evidence": task_result.get("evidence"),
         "execution_trace": {"steps": state.get("execution_trace") or []},
+        "thread_id": state.get("thread_id"),
+        "file_1_path": state.get("file_1_path"),
+        "file_2_path": state.get("file_2_path"),
+        "meta_1": state.get("meta_1"),
+        "meta_2": state.get("meta_2"),
     }
 
     # Pass through task-specific visual artifacts
