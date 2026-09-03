@@ -1,6 +1,6 @@
 import os
 from pydantic import field_validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     API_TITLE: str = "SatQuery AI API"
@@ -18,7 +18,9 @@ class Settings(BaseSettings):
     VQA_USE_FALLBACK: bool = False
     VQA_LOCAL_FILES_ONLY: bool = True
     VQA_MAX_NEW_TOKENS: int = 16
-    VQA_NUM_BEAMS: int = 4
+    VQA_NUM_BEAMS: int = 3
+    VQA_REPETITION_PENALTY: float = 1.15
+    VQA_LENGTH_PENALTY: float = 1.0
     # Kept separate from VQA so model-backed VQA does not trigger an unrelated
     # caption-model download at API startup.
     CAPTION_USE_FALLBACK: bool = True
@@ -33,6 +35,8 @@ class Settings(BaseSettings):
     BIGEARTHNET_EXPECTED_BANDS: int = 12  # Sentinel-2 12 bands (the checkpoint uses S2 only)
     BIGEARTHNET_THRESHOLD: float = 0.5
 
+    # Concurrency controls
+    MAX_CONCURRENT_JOBS: int = 4
     
     # Paths
     UPLOAD_DIR: str = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads")
@@ -49,9 +53,7 @@ class Settings(BaseSettings):
                 return True
         return value
     
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 settings = Settings()
 

@@ -1,0 +1,4 @@
+{"image": "forest_scene.png", "question": "What type of land cover is visible?", "answer": "dense vegetation and forest canopy"}
+{"image": "forest_scene.png", "question": "Are there any structures present in this scene?", "answer": "no"}
+{"image": "lake_suburb.png", "question": "Is there a river or water body present?", "answer": "yes"}
+{"image": "lake_suburb.png", "question": "What elements are visible in this scene?", "answer": "water body, residential houses, and urban roads"}

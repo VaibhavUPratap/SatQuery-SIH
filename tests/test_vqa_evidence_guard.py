@@ -52,3 +52,27 @@ def test_sanity_layer_catches_excessive_length():
         )
     assert answer == "Unable to determine a reliable answer from the provided image."
     assert evidence["validation_status"] == "unreliable_length"
+
+
+def test_model_answer_canonicalizes_standalone_number_words():
+    assert RemoteSensingVQAModel._canonicalize_answer("one") == "1"
+    assert RemoteSensingVQAModel._canonicalize_answer("  SEVEN  ") == "7"
+    assert RemoteSensingVQAModel._canonicalize_answer("there are one") == "there are one"
+
+
+def test_fallback_reports_why_model_inference_was_skipped():
+    """Verify fallback metadata distinguishes configuration from model failure."""
+    image_path = ROOT / "datasets/samples/lake_suburb.png"
+    vqa = RemoteSensingVQAModel()
+    vqa.use_fallback = True
+
+    configured = vqa.run({"image_path": str(image_path), "question": "What is visible?"})
+
+    assert configured["evidence"]["fallback_reason"] == "configured"
+    assert configured["execution_trace"]["fallback_reason"] == "configured"
+
+    vqa = RemoteSensingVQAModel()
+    failed = vqa._run_fallback(str(image_path), "What is visible?", 0, error_msg="checkpoint unavailable")
+
+    assert failed["evidence"]["fallback_reason"] == "model_error"
+    assert failed["execution_trace"]["fallback_reason"] == "model_error"

@@ -69,12 +69,32 @@ def fetch_samples(count=50, split="validation", output_dir=None):
         with open(os.path.join(rsvqa_dir, "metadata.json"), "w") as f:
             json.dump(samples_metadata, f, indent=2)
             
-        # Write train.jsonl file
+        # Keep evaluation images out of the training manifest. The first 40
+        # records are the training split and the remaining records are held out.
+        train_count = min(40, len(samples_metadata))
         jsonl_path = os.path.join(rsvqa_dir, "train.jsonl")
         with open(jsonl_path, "w") as f:
-            f.write("\n".join(jsonl_lines) + "\n")
+            train_lines = [json.dumps({
+                "image": os.path.join(rsvqa_dir, item["image_name"]),
+                "question": item["question"],
+                "answer": item["answer"],
+            }) for item in samples_metadata[:train_count]]
+            f.write("\n".join(train_lines) + "\n")
+
+        holdout_path = os.path.join(rsvqa_dir, "test_holdout.jsonl")
+        with open(holdout_path, "w") as f:
+            holdout_lines = [json.dumps({
+                "image": os.path.join(rsvqa_dir, item["image_name"]),
+                "question": item["question"],
+                "target": item["answer"],
+                "split": "strictly_held_out",
+            }) for item in samples_metadata[train_count:]]
+            f.write("\n".join(holdout_lines) + "\n")
             
-        logger.info(f"Successfully fetched real RSVQA low-res samples and wrote manifest to {jsonl_path}")
+        logger.info(
+            f"Successfully fetched RSVQA manifests: {train_count} train and "
+            f"{len(samples_metadata) - train_count} held out"
+        )
         
     except Exception as e:
         logger.error(f"Failed to fetch real RSVQA data: {str(e)}")

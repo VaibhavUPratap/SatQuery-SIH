@@ -5,11 +5,27 @@ import logging
 from typing import Any, Dict, Tuple
 import numpy as np
 from PIL import Image
+
 from backend.models.base import BaseSpecialistModel
 from backend.config import settings
 from backend.models.vqa.preprocessing import load_rgb_image
 
 logger = logging.getLogger("satquery.vqa")
+
+_NUMBER_WORDS = {
+    "zero": "0",
+    "one": "1",
+    "two": "2",
+    "three": "3",
+    "four": "4",
+    "five": "5",
+    "six": "6",
+    "seven": "7",
+    "eight": "8",
+    "nine": "9",
+    "ten": "10",
+}
+
 
 class RemoteSensingVQAModel(BaseSpecialistModel):
     """
@@ -40,6 +56,7 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
             return
         if self._load_error:
             raise RuntimeError(self._load_error)
+            
         try:
             import torch
             from transformers import BlipProcessor, BlipForQuestionAnswering
@@ -54,20 +71,37 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
                 
             adapter_path = self.adapter_path
             if not adapter_path or not os.path.isdir(adapter_path):
-                raise RuntimeError(f"VQA_ADAPTER_PATH '{adapter_path}' must point to the supplied RSVQA LoRA adapter directory.")
+                raise RuntimeError(
+                    f"VQA_ADAPTER_PATH '{adapter_path}' must point to a valid directory containing the fine-tuned RSVQA LoRA adapter."
+                )
             
             logger.info("Loading BLIP base model '%s' and RSVQA LoRA adapter '%s' on %s.", self.model_name, adapter_path, self.device)
-            load_options = {"local_files_only": settings.VQA_LOCAL_FILES_ONLY}
             
-            # 1. Load processor (prefer saved processor from adapter checkpoint)
+            # Honor local-only mode so an offline deployment never attempts a network fetch.
+            processor = None
+            base_model = None
+            
+            local_only = settings.VQA_LOCAL_FILES_ONLY
+            load_opts = {"local_files_only": local_only}
             try:
-                self.processor = BlipProcessor.from_pretrained(adapter_path, **load_options)
-            except Exception as proc_err:
-                logger.warning("Could not load processor from adapter path (%s); loading from base model '%s'.", proc_err, self.model_name)
-                self.processor = BlipProcessor.from_pretrained(self.model_name, **load_options)
+                # 1. Load processor (prefer adapter directory if processor config exists)
+                try:
+                    processor = BlipProcessor.from_pretrained(adapter_path, **load_opts)
+                except Exception:
+                    processor = BlipProcessor.from_pretrained(self.model_name, **load_opts)
 
-            # 2. Load base BLIP-VQA model
-            base_model = BlipForQuestionAnswering.from_pretrained(self.model_name, **load_options).to(self.device)
+                # 2. Load base BLIP-VQA model
+                base_model = BlipForQuestionAnswering.from_pretrained(self.model_name, **load_opts)
+            except Exception as load_err:
+                if local_only:
+                    logger.info("Local files only load failed for %s (%s).", self.model_name, load_err)
+                raise
+
+            if processor is None or base_model is None:
+                raise RuntimeError("Failed to load BLIP processor or base model.")
+
+            self.processor = processor
+            base_model = base_model.to(self.device)
             
             # 3. Attach LoRA adapter
             self.model = PeftModel.from_pretrained(base_model, adapter_path).to(self.device).eval()
@@ -88,7 +122,8 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
                 "max_new_tokens": settings.VQA_MAX_NEW_TOKENS,
                 "num_beams": settings.VQA_NUM_BEAMS,
             }
-            logger.info("Successfully loaded RSVQA BLIP LoRA model on %s (active adapters: %s).", self.device, active_adapters)
+            self._fallback_active = False
+            logger.info("Successfully loaded fine-tuned RSVQA BLIP LoRA model on %s (active adapters: %s).", self.device, active_adapters)
         except Exception as e:
             self._load_error = str(e)
             self._fallback_active = True
@@ -118,12 +153,12 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
 
     def run(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Execute VQA inference.
+        Execute VQA inference using fine-tuned RSVQA LoRA adapter model with fallback guard.
         
         Args:
             inputs: Dictionary containing:
                 - image_path (str): Absolute path to the image.
-                - question (str): Query text.
+                - question (str): Question query text.
                 
         Returns:
             Dict containing:
@@ -143,7 +178,7 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
 
         start_time = time.time()
 
-        # If fallback is explicitly enabled via config
+        # If fallback is explicitly requested or already active
         if self._fallback_active or self.use_fallback:
             return self._run_fallback(image_path, question, start_time, error_msg=self._load_error)
             
@@ -158,11 +193,13 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
                     **inputs_encoded,
                     max_new_tokens=settings.VQA_MAX_NEW_TOKENS,
                     num_beams=settings.VQA_NUM_BEAMS,
-                    repetition_penalty=1.15,
+                    repetition_penalty=settings.VQA_REPETITION_PENALTY,
+                    length_penalty=settings.VQA_LENGTH_PENALTY,
                     do_sample=False,
                 )
                 
             raw_answer = self.processor.decode(outputs[0], skip_special_tokens=True).strip()
+            raw_answer = self._canonicalize_answer(raw_answer)
             final_answer, confidence, visual_evidence = self._validate_and_sanitize_output(raw_answer, question, image)
             elapsed = time.time() - start_time
             
@@ -193,22 +230,25 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
             # Re-raise explicit validation errors (e.g. multispectral raster rejected)
             raise
         except Exception as e:
-            logger.error(f"Inference failed, using fallback: {str(e)}")
+            logger.error("VQA model inference failed, using fallback analyzer: %s", e)
             return self._run_fallback(image_path, question, start_time, error_msg=str(e))
+
+    @staticmethod
+    def _canonicalize_answer(raw_answer: str) -> str:
+        """Normalize standalone number words emitted for count questions."""
+        cleaned = (raw_answer or "").strip().lower()
+        return _NUMBER_WORDS.get(cleaned, raw_answer.strip() if raw_answer else "")
 
     @staticmethod
     def _validate_and_sanitize_output(raw_answer: str, question: str, image: Image.Image) -> Tuple[str, float, Dict[str, Any]]:
         """
-        Lightweight output sanity layer.
+        Expert output sanity layer.
         
-        Detects empty, malformed, excessively long, or repeated garbage outputs.
-        Returns 'Unable to determine a reliable answer from the provided image.'
-        if validation fails without fabricating answers.
+        Cleans output punctuation, validates output bounds, and calculates honest confidence.
         """
         # Extract visual spectral metrics for diagnostic evidence
         pixels = np.asarray(image.convert("RGB"), dtype=np.int16)
         red, green, blue = pixels[:, :, 0], pixels[:, :, 1], pixels[:, :, 2]
-        total_pixels = pixels.shape[0] * pixels.shape[1]
         vegetation = float(np.mean((green > red * 1.05 + 4) & (green > blue * 1.05 + 4)))
         water = float(np.mean((blue > red * 1.10 + 6) & (blue > green * 1.05 + 6) & (blue < 245)))
         structural = float(np.mean((np.abs(red - green) < 15) & (np.abs(green - blue) < 15) & (((red + green + blue) / 3) > 80) & (((red + green + blue) / 3) < 200)))
@@ -231,6 +271,9 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
                     "visual_metrics": visual_metrics,
                 }
             )
+
+        # Strip trailing/leading punctuation artifacts (e.g. "rural." -> "rural")
+        cleaned = cleaned.strip(" .,!?:;\"'[](){}<>")
 
         # Check 2: Pure punctuation / non-alphanumeric garbage
         if not re.search(r"[a-zA-Z0-9]", cleaned):
@@ -255,7 +298,7 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
                 }
             )
 
-        # Check 4: Repetitive loops (e.g. "water water water" or ", , ,")
+        # Check 4: Repetitive loops (e.g. "water water water")
         if len(words) >= 3 and len(set(words)) == 1:
             return (
                 "Unable to determine a reliable answer from the provided image.",
@@ -266,7 +309,7 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
                 }
             )
 
-        # Validation passed: return clean model answer with honest confidence
+        # Validation passed: return clean model answer with honest confidence score
         confidence = 0.85 if len(words) <= 5 else 0.75
 
         return (
@@ -283,13 +326,13 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
         Calculates pixel color distribution metrics from the input image
         to answer common remote sensing VQA query keywords.
         """
+        fallback_reason = "model_error" if error_msg else "configured"
         try:
             image = load_rgb_image(image_path)
             img_arr = np.array(image)
             height, width, channels = img_arr.shape
             total_pixels = height * width
 
-            # Heuristics: extract RGB channels
             r, g, b = img_arr[:, :, 0], img_arr[:, :, 1], img_arr[:, :, 2]
 
             green_mask = (g > (r.astype(int) * 1.05 + 4)) & (g > (b.astype(int) * 1.05 + 4))
@@ -309,10 +352,12 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
             try:
                 import cv2
                 structure_mask = (gray_mask.astype(np.uint8) * 255)
-                components, _, _, _ = cv2.connectedComponentsWithStats(structure_mask, 8)
-                object_count = max(0, sum(1 for area in _[:, cv2.CC_STAT_AREA][1:] if area >= max(8, total_pixels * 0.002)))
+                components, labels, stats, centroids = cv2.connectedComponentsWithStats(structure_mask, 8)
+                object_count = max(0, sum(1 for area in stats[:, cv2.CC_STAT_AREA][1:] if area >= max(8, total_pixels * 0.002)))
             except Exception:
                 object_count = max(0, int(gray_ratio * 20))
+        except ValueError:
+            raise
         except Exception as e:
             green_ratio, blue_ratio, gray_ratio, object_count = 0.25, 0.05, 0.10, 0
             total_pixels = 0
@@ -321,7 +366,6 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
 
         q_lower = question.lower()
         
-        # Formulate answer based on query keywords and pixel distributions
         exact_count = any(kw in q_lower for kw in ["count", "how many", "number of", "amount of"])
         answer_status = "fallback"
         if exact_count:
@@ -337,7 +381,7 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
                 land_types.append(f"built-up urban structure/roads covering {gray_ratio*100:.1f}% of the area")
                 
             if land_types:
-                answer = f"The satellite image contains primarily " + ", ".join(land_types) + "."
+                answer = "The satellite image contains primarily " + ", ".join(land_types) + "."
             else:
                 answer = "The image represents barren land or mixed surface features with sparse vegetation."
                 
@@ -378,6 +422,7 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
             "fallback_active": True,
             "inference_mode": "fallback",
             "answer_status": answer_status,
+            "fallback_reason": fallback_reason,
         }
         if error_msg:
             trace_info["hf_model_error"] = error_msg
@@ -395,6 +440,7 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
                 "image_resolution": f"{width}x{height} pixels",
                 "total_analyzed_pixels": total_pixels,
                 "inference_mode": "fallback",
+                "fallback_reason": fallback_reason,
             },
             "execution_trace": trace_info
         }

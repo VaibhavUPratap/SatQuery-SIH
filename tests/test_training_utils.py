@@ -33,3 +33,40 @@ def test_split_train_val_rejects_too_small_dataset() -> None:
         assert 'At least two records' in str(exc)
     else:
         raise AssertionError('Expected a ValueError for a one-record dataset')
+
+
+def test_resolve_image_path_recovers_relocated_manifest_path(tmp_path: Path) -> None:
+    image_path = tmp_path / 'rsvqa_sample_0.png'
+    image_path.touch()
+
+    resolved = module.resolve_image_path('/old/machine/rsvqa_sample_0.png', tmp_path / 'train.jsonl')
+
+    assert Path(resolved) == image_path
+
+
+def test_validate_no_image_overlap_rejects_leakage(tmp_path: Path) -> None:
+    train = [{'image': str(tmp_path / 'shared.png')}]
+    holdout = [{'image': str(tmp_path / 'shared.png')}]
+
+    try:
+        module.validate_no_image_overlap(train, holdout, tmp_path / 'train.jsonl', tmp_path / 'test.jsonl')
+    except ValueError as exc:
+        assert 'overlaps the holdout' in str(exc)
+    else:
+        raise AssertionError('Expected image-level overlap to be rejected')
+
+
+def test_load_training_records_adds_each_manifest_once(tmp_path: Path) -> None:
+    base_manifest = tmp_path / 'base.jsonl'
+    extra_manifest = tmp_path / 'extra.jsonl'
+    base_image = tmp_path / 'base.png'
+    extra_image = tmp_path / 'extra.png'
+    base_image.touch()
+    extra_image.touch()
+    base_manifest.write_text('{"image": "base.png", "question": "q", "answer": "yes"}\n')
+    extra_manifest.write_text('{"image": "extra.png", "question": "q", "answer": "no"}\n')
+
+    records = module.load_training_records(base_manifest, [extra_manifest])
+
+    assert len(records) == 2
+    assert [record['answer'] for record in records] == ['yes', 'no']

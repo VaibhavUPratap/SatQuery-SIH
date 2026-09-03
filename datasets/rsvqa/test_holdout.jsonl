@@ -1,10 +1,10 @@
-{"image": "C:\\Users\\tanus\\Downloads\\SatQuery-SIH\\datasets\\rsvqa\\rsvqa_sample_40.png", "question": "What is the number of small water areas in the image?", "target": "7", "prediction": "1"}
-{"image": "C:\\Users\\tanus\\Downloads\\SatQuery-SIH\\datasets\\rsvqa\\rsvqa_sample_41.png", "question": "Is it a rural or an urban area", "target": "rural", "prediction": "rural"}
-{"image": "C:\\Users\\tanus\\Downloads\\SatQuery-SIH\\datasets\\rsvqa\\rsvqa_sample_42.png", "question": "Are there more water areas than commercial buildings?", "target": "yes", "prediction": "no"}
-{"image": "C:\\Users\\tanus\\Downloads\\SatQuery-SIH\\datasets\\rsvqa\\rsvqa_sample_43.png", "question": "What is the amount of buildings?", "target": "174", "prediction": "there are none"}
-{"image": "C:\\Users\\tanus\\Downloads\\SatQuery-SIH\\datasets\\rsvqa\\rsvqa_sample_44.png", "question": "What is the number of commercial buildings?", "target": "1", "prediction": "one"}
-{"image": "C:\\Users\\tanus\\Downloads\\SatQuery-SIH\\datasets\\rsvqa\\rsvqa_sample_45.png", "question": "Is there a circular water area in the image?", "target": "yes", "prediction": "no"}
-{"image": "C:\\Users\\tanus\\Downloads\\SatQuery-SIH\\datasets\\rsvqa\\rsvqa_sample_46.png", "question": "What is the amount of residential buildings in the image?", "target": "172", "prediction": "three"}
-{"image": "C:\\Users\\tanus\\Downloads\\SatQuery-SIH\\datasets\\rsvqa\\rsvqa_sample_47.png", "question": "Is the number of buildings equal to the number of farmlands?", "target": "no", "prediction": "yes"}
-{"image": "C:\\Users\\tanus\\Downloads\\SatQuery-SIH\\datasets\\rsvqa\\rsvqa_sample_48.png", "question": "Are there more roads than commercial buildings?", "target": "yes", "prediction": "yes"}
-{"image": "C:\\Users\\tanus\\Downloads\\SatQuery-SIH\\datasets\\rsvqa\\rsvqa_sample_49.png", "question": "Is a square road present in the image?", "target": "no", "prediction": "no"}
+{"image": "C:\\Users\\tuf\\Downloads\\SatQuery-SIH\\datasets\\rsvqa\\rsvqa_sample_40.png", "question": "What is the number of small water areas in the image?", "target": "7", "split": "strictly_held_out"}
+{"image": "C:\\Users\\tuf\\Downloads\\SatQuery-SIH\\datasets\\rsvqa\\rsvqa_sample_41.png", "question": "Is it a rural or an urban area", "target": "rural", "split": "strictly_held_out"}
+{"image": "C:\\Users\\tuf\\Downloads\\SatQuery-SIH\\datasets\\rsvqa\\rsvqa_sample_42.png", "question": "Are there more water areas than commercial buildings?", "target": "yes", "split": "strictly_held_out"}
+{"image": "C:\\Users\\tuf\\Downloads\\SatQuery-SIH\\datasets\\rsvqa\\rsvqa_sample_43.png", "question": "What is the amount of buildings?", "target": "174", "split": "strictly_held_out"}
+{"image": "C:\\Users\\tuf\\Downloads\\SatQuery-SIH\\datasets\\rsvqa\\rsvqa_sample_44.png", "question": "What is the number of commercial buildings?", "target": "1", "split": "strictly_held_out"}
+{"image": "C:\\Users\\tuf\\Downloads\\SatQuery-SIH\\datasets\\rsvqa\\rsvqa_sample_45.png", "question": "Is there a circular water area in the image?", "target": "yes", "split": "strictly_held_out"}
+{"image": "C:\\Users\\tuf\\Downloads\\SatQuery-SIH\\datasets\\rsvqa\\rsvqa_sample_46.png", "question": "What is the amount of residential buildings in the image?", "target": "172", "split": "strictly_held_out"}
+{"image": "C:\\Users\\tuf\\Downloads\\SatQuery-SIH\\datasets\\rsvqa\\rsvqa_sample_47.png", "question": "Is the number of buildings equal to the number of farmlands?", "target": "no", "split": "strictly_held_out"}
+{"image": "C:\\Users\\tuf\\Downloads\\SatQuery-SIH\\datasets\\rsvqa\\rsvqa_sample_48.png", "question": "Are there more roads than commercial buildings?", "target": "yes", "split": "strictly_held_out"}
+{"image": "C:\\Users\\tuf\\Downloads\\SatQuery-SIH\\datasets\\rsvqa\\rsvqa_sample_49.png", "question": "Is a square road present in the image?", "target": "no", "split": "strictly_held_out"}

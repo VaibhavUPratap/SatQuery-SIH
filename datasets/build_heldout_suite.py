@@ -55,6 +55,14 @@ def build_vqa_holdout():
     with open(os.path.join(RSVQA_DIR, "train_split.jsonl"), "w") as f:
         f.write("\n".join(train_lines) + "\n")
 
+    # Keep the canonical training manifest aligned with the strict split.
+    with open(os.path.join(RSVQA_DIR, "train.jsonl"), "w") as f:
+        f.write("\n".join(json.dumps({
+            "image": os.path.join(RSVQA_DIR, item["image_name"]),
+            "question": item["question"],
+            "answer": item["answer"],
+        }) for item in train_meta if os.path.exists(os.path.join(RSVQA_DIR, item["image_name"]))) + "\n")
+
     # Write heldout test split manifest (samples 40 to 49)
     holdout_lines = []
     for item in heldout_meta:
@@ -73,6 +81,14 @@ def build_vqa_holdout():
     out_file = os.path.join(SUITE_DIR, "vqa_holdout.jsonl")
     with open(out_file, "w") as f:
         f.write("\n".join(holdout_lines) + "\n")
+
+    with open(os.path.join(RSVQA_DIR, "test_holdout.jsonl"), "w") as f:
+        f.write("\n".join(json.dumps({
+            "image": os.path.join(RSVQA_DIR, item["image_name"]),
+            "question": item["question"],
+            "target": item["answer"],
+            "split": "strictly_held_out",
+        }) for item in heldout_meta if os.path.exists(os.path.join(RSVQA_DIR, item["image_name"]))) + "\n")
     print(f"Generated strictly held-out VQA dataset with {len(holdout_lines)} samples (0% train overlap) at {out_file}")
 
 

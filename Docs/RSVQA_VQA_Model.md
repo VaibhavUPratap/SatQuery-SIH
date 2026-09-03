@@ -1,6 +1,6 @@
 # RSVQA BLIP LoRA VQA Model Pipeline
 
-**Status:** Verified & Stabilized (Phase 2)  
+**Status:** Model path verified; adapter quality under active remediation  
 **Architecture:** `Salesforce/blip-vqa-base` + PEFT LoRA Adapter (`checkpoints/rsvqa-blip-lora`)  
 **Modality:** Optical Remote Sensing RGB Imagery  
 
@@ -83,8 +83,10 @@ Evaluation conducted across representative satellite imagery (`lake_suburb.png`,
 | 6 | `lake_suburb.png` | *"Are roads visible?"* | `"no"` | `"no"` | `"Contains primarily a water body..."` | `yes` |
 
 ### Key Diagnostic Takeaway
-* The fine-tuned LoRA checkpoint behaves consistently with Base BLIP on general questions because the LoRA adapter was trained on a small 40-sample subset dominated by negative (`"no"`) binary labels.
-* The inference pipeline now runs 100% deterministically without crashing, without random generation, and with strict sanity validation.
+* The active LoRA checkpoint is genuinely loaded through Hugging Face Transformers and PEFT; it is not a standalone model.
+* The original training manifest contained all 50 samples, including the 10-image evaluation set. The canonical manifests are now repaired to 40 training images and 10 zero-overlap holdout images.
+* A clean CPU retraining trial reached 4/10 exact holdout accuracy and was not promoted. The existing adapter currently measures 6/10 exact accuracy on the repaired holdout, so it remains an experimental checkpoint rather than a production-quality VQA model.
+* Count answers remain the weakest category because the available training set is only 40 examples with mostly unique numeric labels. More representative RSVQA data and retraining are required for reliable open-ended and counting questions.
 
 ---
 

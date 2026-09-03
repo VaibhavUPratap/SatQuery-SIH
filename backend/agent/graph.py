@@ -3,6 +3,7 @@
 Orchestrates input validation, intent classification, specialist tool invocation,
 and evidence fusion into an auditable directed acyclic graph (DAG) workflow.
 """
+import os
 import logging
 from typing import Any, Callable, Dict, List, Optional
 
@@ -296,8 +297,8 @@ def fuse_evidence_node(state: AgentState) -> Dict[str, Any]:
         "evidence": task_result.get("evidence"),
         "execution_trace": {"steps": state.get("execution_trace") or []},
         "thread_id": state.get("thread_id"),
-        "file_1_path": state.get("file_1_path"),
-        "file_2_path": state.get("file_2_path"),
+        "file_1_path": os.path.basename(state["file_1_path"]) if state.get("file_1_path") else None,
+        "file_2_path": os.path.basename(state["file_2_path"]) if state.get("file_2_path") else None,
         "meta_1": state.get("meta_1"),
         "meta_2": state.get("meta_2"),
     }

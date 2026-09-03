@@ -9,7 +9,10 @@ Use an RSVQA-style JSONL file with one record per example:
 Run in Colab after installing the optional training dependencies:
 
 ```bash
-python train_lora.py --train-jsonl train.jsonl --output-dir checkpoints/rsvqa-blip-lora
+python train_lora.py \
+	--train-jsonl datasets/rsvqa/train_split.jsonl \
+	--holdout-jsonl datasets/rsvqa/test_holdout.jsonl \
+	--output-dir checkpoints/rsvqa-blip-lora
 ```
 
 Store the resulting adapter outside Git, then set `VQA_ADAPTER_PATH` to its

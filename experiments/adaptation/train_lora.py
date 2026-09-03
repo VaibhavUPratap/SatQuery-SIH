@@ -35,7 +35,62 @@ def split_train_val(records, val_ratio=0.2, seed=42):
     return shuffled[:split_index], shuffled[split_index:]
 
 
-def evaluate_model(model, processor, records, device, max_new_tokens=32):
+def resolve_image_path(image_value, manifest_path):
+    """Resolve paths saved on another machine relative to the manifest directory."""
+    image_path = Path(str(image_value)).expanduser()
+    if image_path.exists():
+        return str(image_path)
+
+    relocated_path = Path(manifest_path).resolve().parent / image_path.name
+    if relocated_path.exists():
+        return str(relocated_path)
+    return str(image_path)
+
+
+def validate_no_image_overlap(train_records, holdout_records, train_manifest, holdout_manifest):
+    """Reject image-level leakage between training and evaluation manifests."""
+    train_images = {
+        Path(resolve_image_path(record["image"], train_manifest)).resolve()
+        for record in train_records
+    }
+    holdout_images = {
+        Path(resolve_image_path(record["image"], holdout_manifest)).resolve()
+        for record in holdout_records
+    }
+    overlap = train_images & holdout_images
+    if overlap:
+        examples = ", ".join(sorted(path.name for path in overlap)[:3])
+        raise ValueError(
+            f"Training manifest overlaps the holdout by {len(overlap)} image(s): {examples}. "
+            "Use a strict train split with zero image overlap."
+        )
+
+
+def load_training_records(train_manifest, additional_manifests=()):
+    """Load and normalize base plus optional supervised training manifests."""
+    train_manifest = Path(train_manifest).resolve()
+    manifest_paths = [train_manifest, *(Path(path).resolve() for path in additional_manifests)]
+    records = []
+    required = {"image", "question", "answer"}
+    for manifest_path in manifest_paths:
+        manifest_records = [
+            json.loads(line) for line in manifest_path.read_text().splitlines() if line.strip()
+        ]
+        for index, record in enumerate(manifest_records):
+            missing = required - record.keys()
+            if missing:
+                raise ValueError(
+                    f"Manifest record {index} in {manifest_path} is missing: {sorted(missing)}"
+                )
+            records.append({
+                "image": resolve_image_path(record["image"], manifest_path),
+                "question": str(record["question"]).strip(),
+                "answer": normalize_answer(record["answer"]),
+            })
+    return records
+
+
+def evaluate_model(model, processor, records, device, max_new_tokens=32, num_beams=3, repetition_penalty=1.15, length_penalty=1.0):
     """Run a lightweight validation pass and return accuracy on the provided records."""
     if not records:
         return {"accuracy": 0.0, "count": 0}
@@ -49,7 +104,9 @@ def evaluate_model(model, processor, records, device, max_new_tokens=32):
             generated = model.generate(
                 **inputs,
                 max_new_tokens=max_new_tokens,
-                num_beams=4,
+                num_beams=num_beams,
+                repetition_penalty=repetition_penalty,
+                length_penalty=length_penalty,
                 do_sample=False,
             )
             pred = normalize_answer(processor.decode(generated[0], skip_special_tokens=True))
@@ -71,28 +128,48 @@ def parse_args():
     parser.add_argument("--learning-rate", type=float, default=5e-5)
     parser.add_argument("--val-ratio", type=float, default=0.2)
     parser.add_argument("--max-new-tokens", type=int, default=16)
+    parser.add_argument("--num-beams", type=int, default=3)
+    parser.add_argument("--repetition-penalty", type=float, default=1.15)
+    parser.add_argument("--length-penalty", type=float, default=1.0)
+    parser.add_argument(
+        "--holdout-jsonl",
+        default=None,
+        help="Optional holdout manifest used to reject image-level train/evaluation leakage.",
+    )
+    parser.add_argument(
+        "--additional-jsonl",
+        action="append",
+        default=[],
+        help="Optional labeled JSONL manifest(s) to add to the training records.",
+    )
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    records = [json.loads(line) for line in Path(args.train_jsonl).read_text().splitlines() if line.strip()]
+    train_manifest = Path(args.train_jsonl).resolve()
+    records = load_training_records(train_manifest, args.additional_jsonl)
     if not records:
         raise ValueError("The training JSONL contains no records.")
-    required = {"image", "question", "answer"}
-    missing = required - records[0].keys()
-    if missing:
-        raise ValueError(f"Dataset records must include: {sorted(required)}; missing {sorted(missing)}")
-    for index, record in enumerate(records[1:], start=1):
-        missing = required - record.keys()
-        if missing:
-            raise ValueError(f"Dataset record {index} is missing: {sorted(missing)}")
 
-    records = [{
-        "image": rec["image"],
-        "question": str(rec["question"]).strip(),
-        "answer": normalize_answer(rec["answer"]),
-    } for rec in records]
+    missing_images = [record["image"] for record in records if not Path(record["image"]).is_file()]
+    if missing_images:
+        raise FileNotFoundError(
+            f"Training manifest contains {len(missing_images)} missing image(s); first: {missing_images[0]}"
+        )
+
+    holdout_manifest = Path(args.holdout_jsonl).resolve() if args.holdout_jsonl else None
+    if holdout_manifest is None and train_manifest.name == "train.jsonl":
+        candidate = train_manifest.with_name("test_holdout.jsonl")
+        if candidate.is_file():
+            holdout_manifest = candidate
+
+    if holdout_manifest:
+        holdout_records = [
+            json.loads(line) for line in holdout_manifest.read_text().splitlines() if line.strip()
+        ]
+        validate_no_image_overlap(records, holdout_records, train_manifest, holdout_manifest)
+
     train_records, val_records = split_train_val(records, val_ratio=args.val_ratio, seed=args.seed)
     if len(train_records) == 0:
         raise ValueError("Validation split consumed all records; reduce --val-ratio.")
@@ -185,7 +262,16 @@ def main():
         avg_loss = epoch_loss / len(dataloader)
         print(f"Epoch {epoch+1}/{args.epochs} completed. Average Loss: {avg_loss:.4f}")
 
-        val_metrics = evaluate_model(model, processor, val_records, device, args.max_new_tokens)
+        val_metrics = evaluate_model(
+            model,
+            processor,
+            val_records,
+            device,
+            args.max_new_tokens,
+            args.num_beams,
+            args.repetition_penalty,
+            args.length_penalty,
+        )
         print(f"Validation accuracy after epoch {epoch+1}: {val_metrics['accuracy']} ({val_metrics['correct']}/{val_metrics['count']})")
 
         if val_metrics["accuracy"] > best_val_accuracy:
