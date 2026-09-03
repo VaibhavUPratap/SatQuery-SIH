@@ -1,0 +1,48 @@
+{
+  "timestamp": "2026-09-02 17:14:01",
+  "platform": "darwin",
+  "split_hygiene": "Strict Zero-Leakage (Train 0-39, Test 40-49)",
+  "tasks": {
+    "vqa": {
+      "task": "Visual Question Answering (VQA)",
+      "dataset": "RSVQA-LR Strictly Held-Out Test Split (0% Train Overlap)",
+      "sample_count": 10,
+      "exact_match_accuracy": 0.0,
+      "binary_classification_accuracy": 0.6667,
+      "overall_domain_accuracy": 0.4,
+      "mean_latency_ms": 65.24,
+      "baseline_generic_vlm_acc": 0.4,
+      "adapted_model_accuracy": 0.4,
+      "relative_gain_percent": 0.0
+    },
+    "grounding": {
+      "task": "Text-Guided Region Grounding",
+      "dataset": "Held-Out Multi-Class RS Grounding Set",
+      "sample_count": 3,
+      "mean_iou": 0.3767,
+      "localization_precision_at_0_5_iou": 0.3333,
+      "mean_confidence": 0.88,
+      "status": "passed"
+    },
+    "change_detection": {
+      "task": "Bi-temporal Change Detection",
+      "dataset": "Held-Out Multi-Terrain Temporal Pairs",
+      "scenarios_evaluated": 3,
+      "mean_pixel_iou": 0.6589,
+      "mean_f1_score": 0.6628,
+      "mean_precision": 0.9923,
+      "mean_recall": 0.6666,
+      "status": "passed"
+    },
+    "optical_sar": {
+      "task": "Cross-Modal Optical + SAR Analysis",
+      "dataset": "Held-Out Multi-Sensor Coregistered Chips",
+      "pairs_evaluated": 2,
+      "multi_modal_alignment_score": 0.92,
+      "water_detection_consistency": 1.0,
+      "builtup_detection_consistency": 0.9966,
+      "mean_confidence": 0.84,
+      "status": "passed"
+    }
+  }
+}
