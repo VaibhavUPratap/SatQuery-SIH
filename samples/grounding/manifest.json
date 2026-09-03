@@ -1,0 +1,63 @@
+{
+  "category": "grounding",
+  "title": "Text-Guided Remote Sensing Visual Grounding Sample Pack",
+  "intended_api": "/api/v1/grounding",
+  "source": "Copernicus Sentinel-2 Level-2A BOA Optical Data",
+  "license": "Open Data / CC BY 4.0 / Copernicus Open Access",
+  "sensor": "Sentinel-2 MSI",
+  "samples": [
+    {
+      "sample_id": "ground_001_water_body",
+      "image_file": "sentinel2_lake_suburb_grounding.png",
+      "data_type": "VISUALIZATION IMAGE",
+      "dimensions_px": [
+        512,
+        512
+      ],
+      "acquisition_date": "2021-06-20",
+      "target_query": "Locate the water body.",
+      "target_class": "water body",
+      "expected_bounding_box_format": "[ymin, xmin, ymax, xmax]",
+      "expected_bounding_boxes": [
+        [
+          0,
+          0,
+          512,
+          512
+        ]
+      ],
+      "expected_min_coverage": 0.15,
+      "example_curl": "curl -X POST http://localhost:8000/api/v1/grounding -F \"file=@samples/grounding/sentinel2_lake_suburb_grounding.png\" -F \"query=Locate the water body.\""
+    },
+    {
+      "sample_id": "ground_002_built_up",
+      "image_file": "sentinel2_lake_suburb_grounding.png",
+      "data_type": "VISUALIZATION IMAGE",
+      "dimensions_px": [
+        512,
+        512
+      ],
+      "acquisition_date": "2021-06-20",
+      "target_query": "Highlight the built-up area.",
+      "target_class": "built-up structure",
+      "expected_bounding_box_format": "[ymin, xmin, ymax, xmax]",
+      "expected_min_coverage": 0.08,
+      "example_curl": "curl -X POST http://localhost:8000/api/v1/grounding -F \"file=@samples/grounding/sentinel2_lake_suburb_grounding.png\" -F \"query=Highlight the built-up area.\""
+    },
+    {
+      "sample_id": "ground_003_forest_vegetation",
+      "image_file": "sentinel2_forest_canopy_grounding.png",
+      "data_type": "VISUALIZATION IMAGE",
+      "dimensions_px": [
+        512,
+        512
+      ],
+      "acquisition_date": "2021-07-10",
+      "target_query": "Highlight the dense vegetation and forest area.",
+      "target_class": "vegetation",
+      "expected_bounding_box_format": "[ymin, xmin, ymax, xmax]",
+      "expected_min_coverage": 0.4,
+      "example_curl": "curl -X POST http://localhost:8000/api/v1/grounding -F \"file=@samples/grounding/sentinel2_forest_canopy_grounding.png\" -F \"query=Highlight the dense vegetation and forest area.\""
+    }
+  ]
+}

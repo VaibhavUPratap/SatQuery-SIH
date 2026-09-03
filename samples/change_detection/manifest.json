@@ -1,0 +1,60 @@
+{
+  "category": "change_detection",
+  "title": "Bi-Temporal Remote Sensing Earth Observation Change Detection Sample Pack",
+  "intended_api": "/api/v1/change or /api/v1/agent (2 images)",
+  "source": "ESA Copernicus Sentinel-2 MSI Multi-Temporal Acquisitions",
+  "license": "Open Data / CC BY 4.0 / Copernicus Open Access",
+  "samples": [
+    {
+      "scenario_id": "change_01_deforestation",
+      "name": "Tropical Timber Harvesting & Forest Canopy Clearing",
+      "data_type": "VISUALIZATION IMAGE (Bi-temporal Pair)",
+      "sensor_t1": "Sentinel-2 MSI (Level-2A BOA RGB)",
+      "sensor_t2": "Sentinel-2 MSI (Level-2A BOA RGB)",
+      "t1_file": "change_01_deforestation_t1.png",
+      "t2_file": "change_01_deforestation_t2.png",
+      "ground_truth_mask_file": "change_01_deforestation_mask.png",
+      "acquisition_date_t1": "2019-08-10",
+      "acquisition_date_t2": "2021-08-15",
+      "expected_change_type": "Deforestation / Forest Canopy Loss",
+      "spatial_extent_m": "2560m x 2560m (256x256 px @ 10m GSD)",
+      "expected_change_ratio": "~35.2% of scene area",
+      "spectral_shift": "Significant drop in Green reflectance (NDVI reduction), increase in bare soil SWIR/Red",
+      "example_curl": "curl -X POST http://localhost:8000/api/v1/change -F \"file_t1=@samples/change_detection/change_01_deforestation_t1.png\" -F \"file_t2=@samples/change_detection/change_01_deforestation_t2.png\""
+    },
+    {
+      "scenario_id": "change_02_urban_growth",
+      "name": "Agricultural Outskirts to Built-Up Infrastructure Expansion",
+      "data_type": "VISUALIZATION IMAGE (Bi-temporal Pair)",
+      "sensor_t1": "Sentinel-2 MSI",
+      "sensor_t2": "Sentinel-2 MSI",
+      "t1_file": "change_02_urban_growth_t1.png",
+      "t2_file": "change_02_urban_growth_t2.png",
+      "ground_truth_mask_file": "change_02_urban_growth_mask.png",
+      "acquisition_date_t1": "2018-05-12",
+      "acquisition_date_t2": "2022-05-18",
+      "expected_change_type": "Urbanization / Infrastructure Expansion",
+      "spatial_extent_m": "2560m x 2560m (256x256 px @ 10m GSD)",
+      "expected_change_ratio": "~39.1% of scene area",
+      "spectral_shift": "Lush farmland RGB (60,160,50) converted to bright concrete/rooftop (185,185,190), strong grayscale differential >50 DN enabling clean threshold detection.",
+      "example_curl": "curl -X POST http://localhost:8000/api/v1/change -F \"file_t1=@samples/change_detection/change_02_urban_growth_t1.png\" -F \"file_t2=@samples/change_detection/change_02_urban_growth_t2.png\""
+    },
+    {
+      "scenario_id": "change_03_reservoir_depletion",
+      "name": "Inland Water Reservoir Drought Contraction & Silt Exposure",
+      "data_type": "VISUALIZATION IMAGE (Bi-temporal Pair)",
+      "sensor_t1": "Sentinel-2 MSI",
+      "sensor_t2": "Sentinel-2 MSI",
+      "t1_file": "change_03_reservoir_depletion_t1.png",
+      "t2_file": "change_03_reservoir_depletion_t2.png",
+      "ground_truth_mask_file": "change_03_reservoir_depletion_mask.png",
+      "acquisition_date_t1": "2020-04-10 (Post-Monsoon High Level)",
+      "acquisition_date_t2": "2022-06-25 (Drought / Summer Contraction)",
+      "expected_change_type": "Surface Water Contraction / Reservoir Depletion",
+      "spatial_extent_m": "2560m x 2560m (256x256 px @ 10m GSD)",
+      "expected_change_ratio": "~28.4% of scene area",
+      "spectral_shift": "Deep water absorption (low reflectance) transitioning to bright dried silt bed (high SWIR/Red)",
+      "example_curl": "curl -X POST http://localhost:8000/api/v1/change -F \"file_t1=@samples/change_detection/change_03_reservoir_depletion_t1.png\" -F \"file_t2=@samples/change_detection/change_03_reservoir_depletion_t2.png\""
+    }
+  ]
+}

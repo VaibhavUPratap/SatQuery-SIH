@@ -1,0 +1,101 @@
+{
+  "category": "vqa",
+  "title": "Remote Sensing Visual Question Answering (RSVQA) Sample Pack",
+  "intended_api": "/api/v1/vqa",
+  "data_type": "VISUALIZATION IMAGE (RGB derived from Sentinel-2 MSI)",
+  "source": "RSVQA-LR Benchmark (Sylvain Lobry et al., IEEE TGRS) & ESA Copernicus Open Access Hub",
+  "license": "Open Data / CC BY 4.0 / Copernicus Open Access",
+  "sensor": "Sentinel-2 MSI (Multi-Spectral Instrument)",
+  "bands_used": [
+    "B04 (Red)",
+    "B03 (Green)",
+    "B02 (Blue)"
+  ],
+  "samples": [
+    {
+      "sample_id": "vqa_001_rural_vs_urban",
+      "image_file": "rsvqa_sample_0.png",
+      "data_type": "VISUALIZATION IMAGE",
+      "sensor": "Sentinel-2 MSI",
+      "ground_sample_distance_m": 10.0,
+      "dimensions_px": [
+        256,
+        256
+      ],
+      "acquisition_date": "2020-07-15",
+      "region": "Western Europe Agricultural Mosaic (RSVQA Tile ID: LR_000)",
+      "question": "Is it a rural or an urban area",
+      "expected_answer": "rural",
+      "question_type": "Comparison / Land Cover Category",
+      "example_curl": "curl -X POST http://localhost:8000/api/v1/vqa -F \"file=@samples/vqa/rsvqa_sample_0.png\" -F \"question=Is it a rural or an urban area\""
+    },
+    {
+      "sample_id": "vqa_002_commercial_count",
+      "image_file": "rsvqa_sample_1.png",
+      "data_type": "VISUALIZATION IMAGE",
+      "sensor": "Sentinel-2 MSI",
+      "ground_sample_distance_m": 10.0,
+      "dimensions_px": [
+        256,
+        256
+      ],
+      "acquisition_date": "2020-07-15",
+      "region": "Suburban Commercial Sector (RSVQA Tile ID: LR_001)",
+      "question": "What is the number of commercial buildings?",
+      "expected_answer": "5",
+      "question_type": "Object Counting",
+      "example_curl": "curl -X POST http://localhost:8000/api/v1/vqa -F \"file=@samples/vqa/rsvqa_sample_1.png\" -F \"question=What is the number of commercial buildings?\""
+    },
+    {
+      "sample_id": "vqa_003_water_count_heldout",
+      "image_file": "rsvqa_sample_40.png",
+      "data_type": "VISUALIZATION IMAGE",
+      "sensor": "Sentinel-2 MSI",
+      "ground_sample_distance_m": 10.0,
+      "dimensions_px": [
+        256,
+        256
+      ],
+      "acquisition_date": "2020-08-02",
+      "region": "River Basin & Wetland Fringe (RSVQA Tile ID: LR_040, Strictly Held-Out)",
+      "question": "What is the number of small water areas in the image?",
+      "expected_answer": "7",
+      "question_type": "Object Counting",
+      "example_curl": "curl -X POST http://localhost:8000/api/v1/vqa -F \"file=@samples/vqa/rsvqa_sample_40.png\" -F \"question=What is the number of small water areas in the image?\""
+    },
+    {
+      "sample_id": "vqa_004_water_presence_lake",
+      "image_file": "sentinel2_lake_suburb_vqa.png",
+      "data_type": "VISUALIZATION IMAGE",
+      "sensor": "Sentinel-2 MSI (Level-2A BOA RGB Composite)",
+      "ground_sample_distance_m": 10.0,
+      "dimensions_px": [
+        512,
+        512
+      ],
+      "acquisition_date": "2021-06-20",
+      "region": "Inland Lake & Suburban Settlement",
+      "question": "Is there a river or water body present in this scene?",
+      "expected_answer": "Yes, a prominent water body is clearly visible in the scene.",
+      "question_type": "Presence Verification",
+      "example_curl": "curl -X POST http://localhost:8000/api/v1/vqa -F \"file=@samples/vqa/sentinel2_lake_suburb_vqa.png\" -F \"question=Is there a river or water body present?\""
+    },
+    {
+      "sample_id": "vqa_005_forest_landcover",
+      "image_file": "sentinel2_forest_vqa.png",
+      "data_type": "VISUALIZATION IMAGE",
+      "sensor": "Sentinel-2 MSI (Level-2A BOA RGB Composite)",
+      "ground_sample_distance_m": 10.0,
+      "dimensions_px": [
+        512,
+        512
+      ],
+      "acquisition_date": "2021-07-10",
+      "region": "Temperate Mixed Woodland & Forest Canopy",
+      "question": "What type of land cover dominates this image?",
+      "expected_answer": "Dense vegetation and forest canopy cover dominate the image.",
+      "question_type": "Land Cover Classification",
+      "example_curl": "curl -X POST http://localhost:8000/api/v1/vqa -F \"file=@samples/vqa/sentinel2_forest_vqa.png\" -F \"question=What type of land cover dominates this image?\""
+    }
+  ]
+}

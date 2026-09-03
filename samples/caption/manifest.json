@@ -1,0 +1,88 @@
+{
+  "category": "caption",
+  "title": "Remote Sensing Earth Observation Scene Captioning Sample Pack",
+  "intended_api": "/api/v1/caption",
+  "source": "ESA Copernicus Open Access Hub & CDSE",
+  "license": "Open Data / CC BY 4.0 / Copernicus Open Access",
+  "samples": [
+    {
+      "sample_id": "cap_001_lake_suburb",
+      "image_file": "sentinel2_lake_suburb_caption.png",
+      "data_type": "VISUALIZATION IMAGE",
+      "sensor": "Sentinel-2 MSI (Level-2A BOA Reflectance RGB)",
+      "bands_used": [
+        "B04 (Red)",
+        "B03 (Green)",
+        "B02 (Blue)"
+      ],
+      "ground_sample_distance_m": 10.0,
+      "dimensions_px": [
+        512,
+        512
+      ],
+      "acquisition_date": "2021-06-20",
+      "region": "Suburban Lake Basin",
+      "expected_caption": "A satellite scene showing a clear water body with developed built-up urban structures and roads.",
+      "expected_spectral_cues": {
+        "water_ratio_gt": 0.05,
+        "structural_ratio_gt": 0.15
+      },
+      "example_curl": "curl -X POST http://localhost:8000/api/v1/caption -F \"file=@samples/caption/sentinel2_lake_suburb_caption.png\""
+    },
+    {
+      "sample_id": "cap_002_forest_canopy",
+      "image_file": "sentinel2_forest_canopy_caption.png",
+      "data_type": "VISUALIZATION IMAGE",
+      "sensor": "Sentinel-2 MSI (Level-2A BOA Reflectance RGB)",
+      "bands_used": [
+        "B04 (Red)",
+        "B03 (Green)",
+        "B02 (Blue)"
+      ],
+      "ground_sample_distance_m": 10.0,
+      "dimensions_px": [
+        512,
+        512
+      ],
+      "acquisition_date": "2021-07-10",
+      "region": "Temperate Forest Canopy Reserve",
+      "expected_caption": "A satellite scene showing dense vegetation or forest area with natural green canopy cover.",
+      "expected_spectral_cues": {
+        "vegetation_ratio_gt": 0.4
+      },
+      "example_curl": "curl -X POST http://localhost:8000/api/v1/caption -F \"file=@samples/caption/sentinel2_forest_canopy_caption.png\""
+    },
+    {
+      "sample_id": "cap_003_coastal_port_sar",
+      "image_file": "sentinel1_coastal_port_caption.png",
+      "data_type": "VISUALIZATION IMAGE (SAR Backscatter Intensity 8-bit Render)",
+      "sensor": "Sentinel-1 C-band SAR (Level-1 GRD)",
+      "polarization": "Dual-pol (VV/VH backscatter proxy)",
+      "ground_sample_distance_m": 10.0,
+      "dimensions_px": [
+        512,
+        512
+      ],
+      "acquisition_date": "2021-06-22",
+      "region": "Maritime Commercial Port Terminal & Open Water",
+      "expected_caption": "A high-altitude remote sensing view of coastal port infrastructure with high corner-reflector backscatter and dark specular water.",
+      "example_curl": "curl -X POST http://localhost:8000/api/v1/caption -F \"file=@samples/caption/sentinel1_coastal_port_caption.png\""
+    },
+    {
+      "sample_id": "cap_004_river_farmland_sar",
+      "image_file": "sentinel1_river_farmland_caption.png",
+      "data_type": "VISUALIZATION IMAGE (SAR Backscatter Intensity 8-bit Render)",
+      "sensor": "Sentinel-1 C-band SAR (Level-1 GRD)",
+      "polarization": "Dual-pol (VV/VH backscatter proxy)",
+      "ground_sample_distance_m": 10.0,
+      "dimensions_px": [
+        512,
+        512
+      ],
+      "acquisition_date": "2021-07-05",
+      "region": "River Basin & Agricultural Floodplain",
+      "expected_caption": "A satellite scene showing meandering river channel with surrounding rough agricultural soil parcels.",
+      "example_curl": "curl -X POST http://localhost:8000/api/v1/caption -F \"file=@samples/caption/sentinel1_river_farmland_caption.png\""
+    }
+  ]
+}

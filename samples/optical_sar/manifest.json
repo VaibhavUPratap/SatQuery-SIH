@@ -1,0 +1,59 @@
+{
+  "category": "optical_sar",
+  "title": "Co-Registered Optical (Sentinel-2) + SAR (Sentinel-1) Cross-Modal Sample Pack",
+  "intended_api": "/api/v1/optical-sar or /api/v1/agent (2 images: Optical + SAR)",
+  "source": "Copernicus Sentinel-1 GRD & Sentinel-2 L2A Co-Registered Missions",
+  "license": "Open Data / CC BY 4.0 / Copernicus Open Access",
+  "samples": [
+    {
+      "pair_id": "pair1_coastal_port",
+      "name": "Coastal Harbor & Maritime Industrial Terminal",
+      "optical_file": "pair1_coastal_port_sentinel2_optical.png",
+      "sar_file": "pair1_coastal_port_sentinel1_sar.png",
+      "optical_sensor": "Sentinel-2 MSI (Level-2A BOA Reflectance RGB)",
+      "sar_sensor": "Sentinel-1 C-band SAR (Level-1 GRD Backscatter Intensity)",
+      "optical_acquisition_date": "2021-06-20",
+      "sar_acquisition_date": "2021-06-22 (Within 48h temporal delta)",
+      "coordinate_reference_system": "EPSG:32632 (WGS 84 / UTM zone 32N)",
+      "dimensions_px": [
+        512,
+        512
+      ],
+      "ground_sample_distance_m": 10.0,
+      "spatial_extent_m": "5120m x 5120m",
+      "alignment_info": "Rigid pixel-to-pixel co-registration on standard 10m UTM grid",
+      "cross_modal_cues": {
+        "water_detection": "Optical high blue / low NIR response \u2229 SAR low specular backscatter (calm water reflection away from sensor)",
+        "built_up_detection": "Optical neutral gray / structural reflectance \u2229 SAR high double-bounce metallic/concrete backscatter"
+      },
+      "expected_metrics": {
+        "water_coverage_min": 0.15,
+        "built_up_coverage_min": 0.08
+      },
+      "example_curl": "curl -X POST http://localhost:8000/api/v1/optical-sar -F \"optical_file=@samples/optical_sar/pair1_coastal_port_sentinel2_optical.png\" -F \"sar_file=@samples/optical_sar/pair1_coastal_port_sentinel1_sar.png\" -F \"query=Identify water and built-up areas.\""
+    },
+    {
+      "pair_id": "pair2_river_farmland",
+      "name": "River Basin & Agricultural Floodplain",
+      "optical_file": "pair2_river_farmland_sentinel2_optical.png",
+      "sar_file": "pair2_river_farmland_sentinel1_sar.png",
+      "optical_sensor": "Sentinel-2 MSI (Level-2A BOA Reflectance RGB)",
+      "sar_sensor": "Sentinel-1 C-band SAR (Level-1 GRD Backscatter Intensity)",
+      "optical_acquisition_date": "2021-07-03",
+      "sar_acquisition_date": "2021-07-05",
+      "coordinate_reference_system": "EPSG:32632 (WGS 84 / UTM zone 32N)",
+      "dimensions_px": [
+        512,
+        512
+      ],
+      "ground_sample_distance_m": 10.0,
+      "spatial_extent_m": "5120m x 5120m",
+      "alignment_info": "Pixel-to-pixel co-registered 10m spatial grid",
+      "cross_modal_cues": {
+        "water_detection": "Meandering river channel exhibiting low SAR backscatter and dominant blue spectral absorption",
+        "built_up_detection": "Farm homesteads and rural road junctions with localized high radar double-bounce"
+      },
+      "example_curl": "curl -X POST http://localhost:8000/api/v1/optical-sar -F \"optical_file=@samples/optical_sar/pair2_river_farmland_sentinel2_optical.png\" -F \"sar_file=@samples/optical_sar/pair2_river_farmland_sentinel1_sar.png\" -F \"query=Highlight river channel and settlements.\""
+    }
+  ]
+}

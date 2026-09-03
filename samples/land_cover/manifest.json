@@ -1,0 +1,237 @@
+{
+  "category": "land_cover",
+  "title": "BigEarthNet v2.0 (reBEN) Multi-Modal Land Cover Benchmark Sample Pack",
+  "intended_api": "/api/v1/land-cover",
+  "source": "BIFOLD BigEarthNet v2.0 (reBEN) / TU Berlin / ESA Copernicus",
+  "license": "Community Data License Agreement - Permissive (CDLA-Permissive-1.0)",
+  "benchmark_details": {
+    "nomenclature": "19-Class CORINE Land Cover (CLC) Level-2 / Level-3 aggregated hierarchy",
+    "classes": [
+      "Agro-forestry areas",
+      "Arable land",
+      "Beaches, dunes, sands",
+      "Broad-leaved forest",
+      "Coastal wetlands",
+      "Complex cultivation patterns",
+      "Coniferous forest",
+      "Inland wetlands",
+      "Inland waters",
+      "Industrial or commercial units",
+      "Land principally occupied by agriculture, with significant areas of natural vegetation",
+      "Marine waters",
+      "Mixed forest",
+      "Moors, heathland and sclerophyllous vegetation",
+      "Natural grassland and sparsely vegetated areas",
+      "Pastures",
+      "Permanent crops",
+      "Transitional woodland/shrub",
+      "Urban fabric"
+    ],
+    "model_architecture": "ConvMixer-768/32 (BIFOLD-BigEarthNetv2-0/convmixer_768_32-all-v0.2.0)",
+    "chip_dimension_px": [
+      120,
+      120
+    ],
+    "spatial_resolution_m": 10.0,
+    "coordinate_reference_system": "EPSG:32634 (WGS 84 / UTM zone 34N)"
+  },
+  "sentinel2_optical_specification": {
+    "sensor": "Sentinel-2A/B MSI (Multi-Spectral Instrument)",
+    "preprocessing_state": "Level-2A Bottom-Of-Atmosphere (BOA) Reflectance (Sen2Cor corrected, DN / 10000)",
+    "band_count": 12,
+    "band_order_and_wavelengths": [
+      {
+        "index": 1,
+        "name": "B01",
+        "description": "Coastal Aerosol",
+        "central_wavelength_nm": 443,
+        "native_gsd_m": 60
+      },
+      {
+        "index": 2,
+        "name": "B02",
+        "description": "Blue",
+        "central_wavelength_nm": 490,
+        "native_gsd_m": 10
+      },
+      {
+        "index": 3,
+        "name": "B03",
+        "description": "Green",
+        "central_wavelength_nm": 560,
+        "native_gsd_m": 10
+      },
+      {
+        "index": 4,
+        "name": "B04",
+        "description": "Red",
+        "central_wavelength_nm": 665,
+        "native_gsd_m": 10
+      },
+      {
+        "index": 5,
+        "name": "B05",
+        "description": "Vegetation Red Edge 1",
+        "central_wavelength_nm": 705,
+        "native_gsd_m": 20
+      },
+      {
+        "index": 6,
+        "name": "B06",
+        "description": "Vegetation Red Edge 2",
+        "central_wavelength_nm": 740,
+        "native_gsd_m": 20
+      },
+      {
+        "index": 7,
+        "name": "B07",
+        "description": "Vegetation Red Edge 3",
+        "central_wavelength_nm": 783,
+        "native_gsd_m": 20
+      },
+      {
+        "index": 8,
+        "name": "B08",
+        "description": "NIR (Broad)",
+        "central_wavelength_nm": 842,
+        "native_gsd_m": 10
+      },
+      {
+        "index": 9,
+        "name": "B8A",
+        "description": "NIR (Narrow / Vegetation Red Edge 4)",
+        "central_wavelength_nm": 865,
+        "native_gsd_m": 20
+      },
+      {
+        "index": 10,
+        "name": "B09",
+        "description": "Water Vapour",
+        "central_wavelength_nm": 945,
+        "native_gsd_m": 60
+      },
+      {
+        "index": 11,
+        "name": "B11",
+        "description": "SWIR 1",
+        "central_wavelength_nm": 1610,
+        "native_gsd_m": 20
+      },
+      {
+        "index": 12,
+        "name": "B12",
+        "description": "SWIR 2",
+        "central_wavelength_nm": 2190,
+        "native_gsd_m": 20
+      }
+    ],
+    "interpolation": "All 20m and 60m bands resampled to 10m GSD (120x120 pixels)"
+  },
+  "sentinel1_sar_specification": {
+    "sensor": "Sentinel-1 C-band SAR (Synthetic Aperture Radar)",
+    "acquisition_mode": "Interferometric Wide (IW) Swath",
+    "product_type": "Level-1 Ground Range Detected (GRD)",
+    "polarization_channels": [
+      {
+        "index": 1,
+        "name": "VV",
+        "description": "Vertical transmit, Vertical receive backscatter"
+      },
+      {
+        "index": 2,
+        "name": "VH",
+        "description": "Vertical transmit, Horizontal receive (Cross-pol) backscatter"
+      }
+    ],
+    "preprocessing_state": "Thermal noise removal, radiometric calibration to sigma-nought (sigma0 dB), Range-Doppler terrain correction via SRTM 30m DEM, resampled to 10m pixel grid"
+  },
+  "samples": [
+    {
+      "sample_id": "ben_001_sentinel2_12band",
+      "file_name": "sentinel2_12band_multispectral.tif",
+      "data_type": "RAW/ANALYSIS DATA (12-band GeoTIFF, float32 BOA Reflectance)",
+      "sensor": "Sentinel-2 MSI",
+      "bands": 12,
+      "band_names": [
+        "B01",
+        "B02",
+        "B03",
+        "B04",
+        "B05",
+        "B06",
+        "B07",
+        "B08",
+        "B8A",
+        "B09",
+        "B11",
+        "B12"
+      ],
+      "crs": "EPSG:32634",
+      "dimensions_px": [
+        120,
+        120
+      ],
+      "acquisition_date": "2017-06-14",
+      "expected_labels": [
+        "Mixed forest",
+        "Land principally occupied by agriculture, with significant areas of natural vegetation"
+      ],
+      "example_curl": "curl -X POST http://localhost:8000/api/v1/land-cover -F \"file=@samples/land_cover/sentinel2_12band_multispectral.tif\""
+    },
+    {
+      "sample_id": "ben_002_sentinel1_2band_sar",
+      "file_name": "sentinel1_2band_sar.tif",
+      "data_type": "RAW/ANALYSIS DATA (2-band GeoTIFF, float32 sigma0 Backscatter)",
+      "sensor": "Sentinel-1 C-SAR",
+      "bands": 2,
+      "band_names": [
+        "VV",
+        "VH"
+      ],
+      "crs": "EPSG:32634",
+      "dimensions_px": [
+        120,
+        120
+      ],
+      "acquisition_date": "2017-06-12"
+    },
+    {
+      "sample_id": "ben_003_multimodal_14band",
+      "file_name": "sentinel1_s2_14band_multimodal.tif",
+      "data_type": "RAW/ANALYSIS DATA (14-band GeoTIFF, float32 S1 VV/VH + S2 B01-B12)",
+      "sensor": "Sentinel-1 C-SAR + Sentinel-2 MSI Co-registered",
+      "bands": 14,
+      "band_names": [
+        "VV",
+        "VH",
+        "B01",
+        "B02",
+        "B03",
+        "B04",
+        "B05",
+        "B06",
+        "B07",
+        "B08",
+        "B8A",
+        "B09",
+        "B11",
+        "B12"
+      ],
+      "crs": "EPSG:32634",
+      "dimensions_px": [
+        120,
+        120
+      ]
+    },
+    {
+      "sample_id": "ben_004_rgb_preview",
+      "file_name": "sentinel2_land_cover_rgb_preview.png",
+      "data_type": "VISUALIZATION IMAGE (8-bit RGB Preview for Inspection)",
+      "dimensions_px": [
+        120,
+        120
+      ],
+      "note": "Visual inspection preview only. BigEarthNet /api/v1/land-cover strictly requires 12-band GeoTIFF analysis data."
+    }
+  ]
+}
