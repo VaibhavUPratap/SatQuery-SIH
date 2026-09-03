@@ -16,6 +16,10 @@ class TaskClassifier:
         if requested_task != "auto":
             if requested_task not in allowed:
                 raise ValueError(f"Unsupported analysis_type '{requested_task}'.")
+            if requested_task in {"change", "optical_sar"} and image_count != 2:
+                raise ValueError(f"{requested_task} analysis requires exactly two images.")
+            if requested_task in {"vqa", "caption", "grounding", "land_cover"} and image_count != 1:
+                raise ValueError(f"{requested_task} analysis accepts exactly one image.")
             return RouteDecision(requested_task, "Explicit analysis_type supplied by caller.")
         text = query.lower()
         if image_count == 2:

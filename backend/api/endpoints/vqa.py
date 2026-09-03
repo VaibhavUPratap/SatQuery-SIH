@@ -1,10 +1,10 @@
 import os
-import uuid
 import logging
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status
 from backend.config import settings
 from backend.validation.validator import InputValidator
 from backend.agent.tool_registry import tool_registry
+from backend.api.upload import persist_upload
 
 logger = logging.getLogger("satquery.api.vqa")
 router = APIRouter()
@@ -25,22 +25,12 @@ async def execute_vqa(
         )
 
     # Save uploaded file temporarily with a unique name
-    file_id = str(uuid.uuid4())
-    original_ext = os.path.splitext(file.filename)[1]
-    # Default to .tiff if no extension
-    ext = original_ext if original_ext else ".tiff"
-    
-    file_name = f"{file_id}{ext}"
-    file_path = os.path.join(settings.UPLOAD_DIR, file_name)
-
+    file_path = None
     try:
-        # Write file block by block
-        with open(file_path, "wb") as buffer:
-            while content := await file.read(1024 * 1024):
-                buffer.write(content)
+        file_path = await persist_upload(file, "vqa")
     except Exception as e:
         logger.error(f"Failed to write uploaded file: {str(e)}")
-        if os.path.exists(file_path):
+        if file_path and os.path.exists(file_path):
             os.remove(file_path)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -51,7 +41,7 @@ async def execute_vqa(
     is_valid, error_msg, metadata = InputValidator.validate_image(file_path)
     if not is_valid:
         # Clean up invalid file
-        if os.path.exists(file_path):
+        if file_path and os.path.exists(file_path):
             os.remove(file_path)
         logger.warning(f"Validation failed for upload {file.filename}: {error_msg}")
         raise HTTPException(
@@ -62,7 +52,7 @@ async def execute_vqa(
     # Fetch tool from registry
     vqa_tool = tool_registry.get_tool("vqa")
     if not vqa_tool:
-        if os.path.exists(file_path):
+        if file_path and os.path.exists(file_path):
             os.remove(file_path)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -99,7 +89,7 @@ async def execute_vqa(
         # Optional: delete file after run to prevent storage build up
         # For trace/evidence purposes, in a full app we'd keep it or upload to storage.
         # Let's delete it here to keep local run clean.
-        if os.path.exists(file_path):
+        if file_path and os.path.exists(file_path):
             try:
                 os.remove(file_path)
             except Exception as cleanup_err:

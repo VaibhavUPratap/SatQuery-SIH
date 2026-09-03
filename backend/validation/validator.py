@@ -8,6 +8,13 @@ try:
 except ImportError:
     HAS_RASTERIO = False
 
+try:
+    import numpy as np
+except ImportError:
+    np = None
+
+from backend.config import settings
+
 class InputValidator:
     """
     Validates uploaded satellite images for format, resolution,
@@ -55,6 +62,12 @@ class InputValidator:
                     metadata["bounds"] = list(src.bounds) if src.bounds else None
                     metadata["transform"] = [float(x) for x in src.transform] if src.transform else None
                     metadata["geospatial"] = src.crs is not None
+                    if src.width * src.height > settings.MAX_IMAGE_PIXELS:
+                        return False, "Image dimensions exceed the configured pixel limit.", metadata
+                    if np is not None:
+                        sample = src.read()
+                        if not np.isfinite(sample).all():
+                            return False, "Image contains NaN or infinite pixel values.", metadata
                     return True, "", metadata
             except Exception as e:
                 # If rasterio fails, fall back to standard PIL reader
@@ -67,6 +80,8 @@ class InputValidator:
                 metadata["height"] = img.height
                 metadata["bands"] = len(img.getbands())
                 metadata["mode"] = img.mode
+                if img.width * img.height > settings.MAX_IMAGE_PIXELS:
+                    return False, "Image dimensions exceed the configured pixel limit.", metadata
                 
                 # Check for standard remote sensing TIFF tags without rasterio
                 if hasattr(img, "tag_v2"):

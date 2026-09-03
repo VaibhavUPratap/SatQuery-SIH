@@ -57,7 +57,7 @@ class ChangeVQAModel(BaseSpecialistModel):
             raise ValueError("Could not read one or both images.")
 
         if img_a.shape[:2] != img_b.shape[:2]:
-            img_b = cv2.resize(img_b, (img_a.shape[1], img_a.shape[0]), interpolation=cv2.INTER_LANCZOS4)
+            raise ValueError("Change VQA requires equal image dimensions; register or resample inputs before inference.")
 
         h, w = img_a.shape[:2]
         total_pixels = h * w
@@ -130,7 +130,7 @@ class ChangeVQAModel(BaseSpecialistModel):
             elif veg_change < -0.03:
                 answer = (
                     f"Vegetation cover has decreased from {veg_ratio_a*100:.1f}% to "
-                    f"{veg_ratio_b*100:.1f}% ({veg_change*100:.1f}%), suggesting possible deforestation or land clearing."
+                    f"{veg_ratio_b*100:.1f}% ({veg_change*100:.1f}%), a vegetation-colour decrease that requires analyst confirmation."
                 )
             else:
                 answer = f"Vegetation cover has remained stable at approximately {veg_ratio_b*100:.1f}%."
@@ -139,12 +139,12 @@ class ChangeVQAModel(BaseSpecialistModel):
             if water_change > 0.02:
                 answer = (
                     f"Water coverage has expanded from {water_ratio_a*100:.1f}% to "
-                    f"{water_ratio_b*100:.1f}% (+{water_change*100:.1f}%), potentially indicating flooding or reservoir expansion."
+                    f"{water_ratio_b*100:.1f}% (+{water_change*100:.1f}%), a blue-colour increase that requires analyst confirmation."
                 )
             elif water_change < -0.02:
                 answer = (
                     f"Water coverage has contracted from {water_ratio_a*100:.1f}% to "
-                    f"{water_ratio_b*100:.1f}% ({water_change*100:.1f}%), indicating possible drought or water recession."
+                    f"{water_ratio_b*100:.1f}% ({water_change*100:.1f}%), a blue-colour decrease that requires analyst confirmation."
                 )
             else:
                 answer = f"Water coverage has remained stable at approximately {water_ratio_b*100:.1f}%."

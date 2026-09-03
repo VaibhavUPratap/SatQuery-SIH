@@ -62,6 +62,10 @@ class RemoteSensingGroundingModel(BaseSpecialistModel):
         img = cv2.imread(image_path)
         if img is None:
             raise ValueError(f"Could not load image at path {image_path}")
+
+        with Image.open(image_path) as source:
+            if len(source.getbands()) > 4:
+                raise ValueError("Grounding expects an RGB visualization, not a raw multispectral raster.")
             
         h, w, c = img.shape
         total_pixels = h * w
@@ -96,10 +100,21 @@ class RemoteSensingGroundingModel(BaseSpecialistModel):
             binary_mask[gray_mask] = 255
             
         else:
-            # Catch-all: Default to segmenting high-contrast objects
-            target_name = "high-contrast features"
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            _, binary_mask = cv2.threshold(gray, 180, 255, cv2.THRESH_BINARY)
+            return {
+                "bounding_boxes": [],
+                "annotated_image_b64": "",
+                "target_detected": None,
+                "box_count": 0,
+                "confidence": 0.0,
+                "evidence": {"unsupported_query": query},
+                "execution_trace": {
+                    "task": "Text-Guided Region Grounding",
+                    "model": f"{self.name} (unsupported target)",
+                    "execution_time_seconds": round(time.time() - start_time, 4),
+                    "fallback_active": True,
+                },
+                "status": "unsupported_query",
+            }
 
         # Post-process binary mask: Apply morphology to group adjacent pixels
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))

@@ -62,9 +62,8 @@ class ChangeDetectionModel(BaseSpecialistModel):
         if img_a is None or img_b is None:
             raise ValueError("Could not read one or both images.")
 
-        # Resize B to match A if sizes differ
         if img_a.shape[:2] != img_b.shape[:2]:
-            img_b = cv2.resize(img_b, (img_a.shape[1], img_a.shape[0]), interpolation=cv2.INTER_LANCZOS4)
+            raise ValueError("Change detection requires equal image dimensions; register or resample inputs before inference.")
 
         h, w = img_a.shape[:2]
         total_pixels = h * w
@@ -112,19 +111,19 @@ class ChangeDetectionModel(BaseSpecialistModel):
         # Generate textual summary
         change_elements = []
         if green_diff > 5:
-            change_elements.append("increase in vegetation cover")
+            change_elements.append("increase in vegetation-colour candidate area")
         elif green_diff < -5:
-            change_elements.append("decrease in vegetation cover")
+            change_elements.append("decrease in vegetation-colour candidate area")
 
         if blue_diff > 5:
-            change_elements.append("expansion of water bodies")
+            change_elements.append("increase in blue-colour candidate area")
         elif blue_diff < -5:
-            change_elements.append("reduction in water coverage")
+            change_elements.append("decrease in blue-colour candidate area")
 
         if gray_mean_b > gray_mean_a + 5:
-            change_elements.append("increase in built-up or structural features")
+            change_elements.append("increase in brightness/structure candidate area")
         elif gray_mean_b < gray_mean_a - 5:
-            change_elements.append("decrease in built-up features")
+            change_elements.append("decrease in brightness/structure candidate area")
 
         if change_ratio < 0.02:
             change_summary = "No significant changes detected between the two temporal images."

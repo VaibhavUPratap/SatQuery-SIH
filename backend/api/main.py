@@ -1,8 +1,11 @@
 import logging
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.config import settings
 from backend.api.endpoints import vqa_router, caption_router, grounding_router, change_router, optical_sar_router, agent_router, land_cover_router
+from backend.api.endpoints.auth import router as auth_router
+from backend.api.auth import current_user
+from backend.api.endpoints.jobs import router as jobs_router
 
 # Configure Logger
 logging.basicConfig(
@@ -27,13 +30,16 @@ app.add_middleware(
 )
 
 # Include Routers
-app.include_router(vqa_router, prefix="/api/v1", tags=["Specialist Tools"])
-app.include_router(caption_router, prefix="/api/v1", tags=["Specialist Tools"])
-app.include_router(grounding_router, prefix="/api/v1", tags=["Specialist Tools"])
-app.include_router(change_router, prefix="/api/v1", tags=["Specialist Tools"])
-app.include_router(optical_sar_router, prefix="/api/v1", tags=["Specialist Tools"])
-app.include_router(land_cover_router, prefix="/api/v1", tags=["Specialist Tools"])
-app.include_router(agent_router, prefix="/api/v1", tags=["Agent"])
+protected = [Depends(current_user)]
+app.include_router(vqa_router, prefix="/api/v1", tags=["Specialist Tools"], dependencies=protected)
+app.include_router(caption_router, prefix="/api/v1", tags=["Specialist Tools"], dependencies=protected)
+app.include_router(grounding_router, prefix="/api/v1", tags=["Specialist Tools"], dependencies=protected)
+app.include_router(change_router, prefix="/api/v1", tags=["Specialist Tools"], dependencies=protected)
+app.include_router(optical_sar_router, prefix="/api/v1", tags=["Specialist Tools"], dependencies=protected)
+app.include_router(land_cover_router, prefix="/api/v1", tags=["Specialist Tools"], dependencies=protected)
+app.include_router(agent_router, prefix="/api/v1", tags=["Agent"], dependencies=protected)
+app.include_router(auth_router, prefix="/api/v1", tags=["Authentication"])
+app.include_router(jobs_router, prefix="/api/v1", tags=["Jobs"])
 
 @app.get("/")
 async def root():

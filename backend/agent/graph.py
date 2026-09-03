@@ -51,8 +51,17 @@ def validate_inputs_node(state: AgentState) -> Dict[str, Any]:
                 "error_message": f"Secondary image validation failed: {error_2}",
                 "execution_trace": trace + [{"node": "validate_inputs", "status": "failed", "error": error_2}],
             }
-        query = (state.get("query") or "").lower()
-        is_optical_sar = "sar" in query and "optical" in query
+        try:
+            decision = classifier.classify(
+                state.get("query") or "", 2, state.get("requested_task", "auto")
+            )
+        except ValueError as exc:
+            return {
+                "is_valid": False,
+                "error_message": str(exc),
+                "execution_trace": trace + [{"node": "validate_inputs", "status": "failed", "error": str(exc)}],
+            }
+        is_optical_sar = decision.task == "optical_sar"
         pair_validator = (
             ImageRegistration.validate_optical_sar_pair
             if is_optical_sar
@@ -451,6 +460,9 @@ class SatQueryStateGraph:
 
     def get_state_history(self, thread_id: str) -> List[AgentState]:
         """Retrieve execution state history for a given thread/session."""
+        if self._compiled_graph is not None:
+            config = {"configurable": {"thread_id": thread_id}}
+            return [checkpoint.values for checkpoint in self._compiled_graph.get_state_history(config)]
         return self._checkpoints.get(thread_id, [])
 
 

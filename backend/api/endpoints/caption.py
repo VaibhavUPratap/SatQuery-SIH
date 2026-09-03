@@ -1,10 +1,10 @@
 import os
-import uuid
 import logging
 from fastapi import APIRouter, UploadFile, File, HTTPException, status
 from backend.config import settings
 from backend.validation.validator import InputValidator
 from backend.agent.tool_registry import tool_registry
+from backend.api.upload import persist_upload
 
 logger = logging.getLogger("satquery.api.caption")
 router = APIRouter()
@@ -16,20 +16,12 @@ async def execute_caption(
     """
     Upload a satellite image and generate a natural language description/caption of the scene.
     """
-    file_id = str(uuid.uuid4())
-    original_ext = os.path.splitext(file.filename)[1]
-    ext = original_ext if original_ext else ".tiff"
-    
-    file_name = f"{file_id}{ext}"
-    file_path = os.path.join(settings.UPLOAD_DIR, file_name)
-
+    file_path = None
     try:
-        with open(file_path, "wb") as buffer:
-            while content := await file.read(1024 * 1024):
-                buffer.write(content)
+        file_path = await persist_upload(file, "caption")
     except Exception as e:
         logger.error(f"Failed to write uploaded file: {str(e)}")
-        if os.path.exists(file_path):
+        if file_path and os.path.exists(file_path):
             os.remove(file_path)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -39,7 +31,7 @@ async def execute_caption(
     # Validate image file
     is_valid, error_msg, metadata = InputValidator.validate_image(file_path)
     if not is_valid:
-        if os.path.exists(file_path):
+        if file_path and os.path.exists(file_path):
             os.remove(file_path)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -49,7 +41,7 @@ async def execute_caption(
     # Fetch tool from registry
     caption_tool = tool_registry.get_tool("caption")
     if not caption_tool:
-        if os.path.exists(file_path):
+        if file_path and os.path.exists(file_path):
             os.remove(file_path)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -73,7 +65,7 @@ async def execute_caption(
             detail=f"Captioning execution failed: {str(e)}"
         )
     finally:
-        if os.path.exists(file_path):
+        if file_path and os.path.exists(file_path):
             try:
                 os.remove(file_path)
             except Exception as cleanup_err:

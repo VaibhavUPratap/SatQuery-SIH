@@ -76,6 +76,10 @@ class RemoteSensingCaptionModel(BaseSpecialistModel):
         if not image_path or not os.path.exists(image_path):
             raise FileNotFoundError(f"Image not found at path: {image_path}")
 
+        with Image.open(image_path) as source:
+            if len(source.getbands()) > 4:
+                raise ValueError("Captioning expects an RGB visualization, not a raw multispectral raster.")
+
         start_time = time.time()
 
         if self._fallback_active or settings.CAPTION_USE_FALLBACK:
