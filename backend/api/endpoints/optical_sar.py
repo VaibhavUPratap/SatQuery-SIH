@@ -34,6 +34,14 @@ async def execute_optical_sar(
         if not optical_ok or not sar_ok:
             error = optical_error if not optical_ok else sar_error
             raise HTTPException(status_code=400, detail=f"Image validation failed: {error}")
+        if sar_metadata.get("modality") != "SAR":
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Optical-SAR analysis requires a Sentinel-1 SAR raster as the second input. "
+                    "The uploaded file was detected as RGB/optical; use Bi-Temporal for two optical images."
+                ),
+            )
         compatible, pair_error, pair_metadata = ImageRegistration.validate_optical_sar_pair(optical_path, sar_path)
         if not compatible:
             raise HTTPException(status_code=400, detail=f"Optical-SAR validation failed: {pair_error}")

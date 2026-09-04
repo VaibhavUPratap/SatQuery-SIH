@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 
 from backend.models.base import BaseSpecialistModel
-from backend.preprocessing.optical import normalize_sar_backscatter
+from backend.preprocessing.optical import load_optical_rgb, load_sar_intensity, normalize_sar_backscatter
 
 
 class OpticalSARFusionModel(BaseSpecialistModel):
@@ -38,10 +38,10 @@ class OpticalSARFusionModel(BaseSpecialistModel):
             raise FileNotFoundError(f"SAR image not found: {sar_path}")
 
         start_time = time.time()
-        optical = cv2.imread(optical_path, cv2.IMREAD_COLOR)
-        sar = cv2.imread(sar_path, cv2.IMREAD_UNCHANGED)
-        if optical is None or sar is None:
-            raise ValueError("Could not read the optical or SAR image.")
+        optical, optical_info = load_optical_rgb(optical_path)
+        sar, sar_info = load_sar_intensity(sar_path)
+        if optical_info["modality"] == "rgb_geotiff" and sar_info["modality"] == "rgb_geotiff":
+            raise ValueError("Optical-SAR fusion requires a SAR raster for the second input; two RGB/TCI images are a temporal pair, not an optical-SAR pair.")
         if optical.shape[:2] != sar.shape[:2]:
             raise ValueError("Optical and SAR images must have matching dimensions.")
 
@@ -52,18 +52,22 @@ class OpticalSARFusionModel(BaseSpecialistModel):
         channel_spread = np.maximum.reduce((np.abs(r_int - g_int), np.abs(g_int - b_int), np.abs(r_int - b_int)))
 
         optical_water = (b_int > g_int + 15) & (b_int > r_int + 15) & (brightness < 235)
+        optical_vegetation = (g_int > r_int + 10) & (g_int > b_int + 10)
         optical_built = (channel_spread < 20) & (brightness > 80) & (brightness < 220)
         sar_low = sar_normalized < np.percentile(sar_normalized, 35)
         sar_high = sar_normalized > np.percentile(sar_normalized, 65)
 
         water_mask = (optical_water & sar_low).astype(np.uint8) * 255
+        vegetation_mask = (optical_vegetation & (sar_normalized > np.percentile(sar_normalized, 25))).astype(np.uint8) * 255
         builtup_mask = (optical_built & sar_high).astype(np.uint8) * 255
         water_mask = cv2.morphologyEx(water_mask, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
         builtup_mask = cv2.morphologyEx(builtup_mask, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+        vegetation_mask = cv2.morphologyEx(vegetation_mask, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
 
         overlay = optical.copy()
         overlay[water_mask > 0] = (255, 0, 0)  # blue in BGR
         overlay[builtup_mask > 0] = (0, 0, 255)  # red in BGR
+        overlay[vegetation_mask > 0] = (0, 180, 0)  # green in BGR
         rendered = cv2.addWeighted(optical, 0.55, overlay, 0.45, 0)
         boxes = self._boxes(water_mask, "water") + self._boxes(builtup_mask, "built_up")
         _, buffer = cv2.imencode(".png", rendered)
@@ -71,20 +75,30 @@ class OpticalSARFusionModel(BaseSpecialistModel):
         total_pixels = optical.shape[0] * optical.shape[1]
         water_ratio = float(np.count_nonzero(water_mask) / total_pixels)
         builtup_ratio = float(np.count_nonzero(builtup_mask) / total_pixels)
+        vegetation_ratio = float(np.count_nonzero(vegetation_mask) / total_pixels)
         confidence = float(np.clip(0.65 + min(water_ratio + builtup_ratio, 0.5) * 0.5, 0.65, 0.9))
+        query_lower = query.lower()
+        requested = []
+        if "veget" in query_lower or "forest" in query_lower or "green" in query_lower:
+            requested.append(f"vegetation candidates across {vegetation_ratio * 100:.1f}%")
+        if "built" in query_lower or "urban" in query_lower or "building" in query_lower:
+            requested.append(f"built-up candidates across {builtup_ratio * 100:.1f}%")
+        if "water" in query_lower or "river" in query_lower or "lake" in query_lower:
+            requested.append(f"water candidates across {water_ratio * 100:.1f}%")
+        summary = "Optical-SAR fusion found " + (" and ".join(requested) if requested else f"water candidates across {water_ratio * 100:.1f}% and built-up candidates across {builtup_ratio * 100:.1f}%") + "."
         return {
-            "summary": (
-                f"Optical-SAR fusion found water across {water_ratio * 100:.1f}% and "
-                f"built-up candidates across {builtup_ratio * 100:.1f}% of the scene."
-            ),
+            "summary": summary,
             "query": query,
-            "class_coverage": {"water": round(water_ratio, 4), "built_up": round(builtup_ratio, 4)},
+            "class_coverage": {"water": round(water_ratio, 4), "built_up": round(builtup_ratio, 4), "vegetation": round(vegetation_ratio, 4)},
             "bounding_boxes": boxes,
             "overlay_b64": base64.b64encode(buffer).decode("utf-8"),
             "confidence": round(confidence, 4),
             "evidence": {
                 "fusion_rule": "water = optical blue response ∩ low SAR backscatter; built_up = neutral optical response ∩ high SAR backscatter",
                 "sar_preprocessing": "3x3 median filter and 2nd/98th percentile normalization",
+                "optical_input": optical_info,
+                "sar_input": sar_info,
+                "interpretation": "Candidate regions from a deterministic baseline; not calibrated class probabilities.",
             },
             "execution_trace": {
                 "task": "Cross-modal Optical + SAR Fusion",

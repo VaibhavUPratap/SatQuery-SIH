@@ -51,8 +51,9 @@ function FileMetaCard({ label, file, modalityHint }) {
   const ext = file.name.split('.').pop()?.toUpperCase() || 'UNKNOWN';
   const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
   const isTiff = /tiff?$/i.test(file.name);
-  const isSar = modalityHint === 'SAR' || /sar|s1/i.test(file.name);
-  const isS2 = modalityHint === 'Optical' || /s2|sentinel2|msi/i.test(file.name);
+  const looksLikeTemporalRgb = /sentinel2_temporal|temporal_t[12]|sentinel2|sentinel-2|s2/i.test(file.name);
+  const isSar = !looksLikeTemporalRgb && (modalityHint === 'SAR' || /sar|s1/i.test(file.name));
+  const isS2 = !isSar && (modalityHint === 'Optical' || /s2|sentinel2|msi/i.test(file.name));
   
   const sensor = isSar ? 'Sentinel-1 C-band SAR' : isS2 ? 'Sentinel-2 MSI Optical' : (modalityHint || 'Satellite Imagery');
   const bands = isTiff ? (file.name.includes('12band') ? '12 Bands (ESA S2)' : 'Multi-band GeoTIFF') : '3-Band RGB';
@@ -62,7 +63,7 @@ function FileMetaCard({ label, file, modalityHint }) {
     <div className="file-meta-card">
       <div className="meta-card-header">
         <span className="badge-sensor">{sensor}</span>
-        <span className="badge-status">VALID FORMAT</span>
+        <span className={`badge-status ${modalityHint === 'SAR' && !isSar ? 'badge-warning' : ''}`}>{modalityHint === 'SAR' && !isSar ? 'WRONG MODALITY' : 'VALID FORMAT'}</span>
       </div>
       <div className="meta-grid">
         <div className="meta-item"><span>File</span><strong>{file.name}</strong></div>
@@ -147,6 +148,17 @@ function FilePreview({ file }) {
       {preview && isTiff && <small className="preview-note">RGB display preview generated from raster bands</small>}
     </div>
   );
+}
+
+async function isRgbTiff(file) {
+  if (!/\.tiff?$/i.test(file?.name || '')) return false;
+  try {
+    const source = await fromBlob(file);
+    const image = await source.getImage();
+    return image.getSamplesPerPixel() >= 3;
+  } catch {
+    return false;
+  }
 }
 
 function FileInput({ label, sublabel, file, modalityHint, onChange }) {
@@ -277,6 +289,9 @@ export default function App() {
     setLoading(true);
     setError('');
     try {
+      if (uploadMode === 'OPTICAL_SAR' && await isRgbTiff(comparison)) {
+        throw new Error('The second file is an RGB/optical TIFF, not a SAR raster. Select a Sentinel-1 VV/VH file, or switch to Bi-Temporal for two optical images.');
+      }
       const analysisType = uploadMode === 'TEMPORAL'
         ? 'change'
         : uploadMode === 'OPTICAL_SAR'

@@ -62,6 +62,18 @@ def validate_inputs_node(state: AgentState) -> Dict[str, Any]:
                 "error_message": str(exc),
                 "execution_trace": trace + [{"node": "validate_inputs", "status": "failed", "error": str(exc)}],
             }
+        if decision.task == "optical_sar":
+            secondary_modality = (meta_2 or {}).get("modality", "")
+            if secondary_modality != "SAR":
+                error = (
+                    "Optical-SAR analysis requires a Sentinel-1 SAR raster as the second input. "
+                    "The uploaded second file was detected as RGB/optical; use Bi-Temporal for two optical images."
+                )
+                return {
+                    "is_valid": False,
+                    "error_message": error,
+                    "execution_trace": trace + [{"node": "validate_inputs", "status": "failed", "error": error}],
+                }
         is_optical_sar = decision.task == "optical_sar"
         pair_validator = (
             ImageRegistration.validate_optical_sar_pair
