@@ -1,0 +1,14 @@
+[
+  {
+    "file": "sentinel2_optical_tci_512.tif",
+    "modality": "Sentinel-2 optical RGB TCI",
+    "source": "datasets/real_temporal_tiffs/manifest.json",
+    "source_scene": "S2A_10SEG_20200105_0_L2A"
+  },
+  {
+    "file": "sentinel1_vv_512.tif",
+    "modality": "Sentinel-1 SAR VV backscatter",
+    "source": "datasets/real_sar/manifest.json",
+    "source_scene": "S1A_IW_GRDH_1SDV_20241231T141628_20241231T141653_057237_070A5B"
+  }
+]

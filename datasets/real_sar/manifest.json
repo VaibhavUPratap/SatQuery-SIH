@@ -1,0 +1,16 @@
+[
+  {
+    "file": "sentinel1_vv_512.tif",
+    "polarization": "VV",
+    "scene_id": "S1A_IW_GRDH_1SDV_20241231T141628_20241231T141653_057237_070A5B",
+    "source_url": "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s1-l1c/GRD/2024/12/31/IW/DV/S1A_IW_GRDH_1SDV_20241231T141628_20241231T141653_057237_070A5B_427A/measurement/iw-vv.tiff",
+    "window": "512x512 top-left source window"
+  },
+  {
+    "file": "sentinel1_vh_512.tif",
+    "polarization": "VH",
+    "scene_id": "S1A_IW_GRDH_1SDV_20241231T141628_20241231T141653_057237_070A5B",
+    "source_url": "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s1-l1c/GRD/2024/12/31/IW/DV/S1A_IW_GRDH_1SDV_20241231T141628_20241231T141653_057237_070A5B_427A/measurement/iw-vh.tiff",
+    "window": "512x512 top-left source window"
+  }
+]
