@@ -5,9 +5,9 @@
 **Organization:** Indian Space Research Organisation (ISRO)  
 **Theme:** Space Technology  
 **Category:** Software  
-**Document status:** Current repository record as of 2 September 2026  
+**Document status:** Current repository record as of 4 September 2026
 **Repository branch:** `main`  
-**Current revision:** `7bfb36b` (`feat: integrate BigEarthNet land cover models and VQA workflows into the backend architecture`)
+**Current revision:** `6a3c215` (`Refactor main.jsx: Simplify imports and remove unused components; streamline App component structure`)
 
 ---
 
@@ -29,7 +29,7 @@ The implemented system supports:
 - A real BLIP LoRA remote-sensing adaptation workflow and imported checkpoint.
 - Accuracy, IoU, and F1 metric runners.
 
-The project is a working prototype and demonstration platform. Several specialist paths intentionally use deterministic image-analysis baselines so the complete demo can run without a GPU or network connection. The adapted VQA checkpoint is real, but its fixed local holdout result is only `0.50` (`5/10`) and must not be treated as a production benchmark.
+The project is a working prototype and demonstration platform. Several specialist paths intentionally use deterministic image-analysis baselines so the complete demo can run without a GPU or network connection. The adapted VQA checkpoint is real and loads through Hugging Face Transformers plus PEFT, but its repaired local holdout result is `0.60` (`6/10`) and must not be treated as a production benchmark.
 
 ---
 
@@ -70,14 +70,14 @@ The system deliberately exposes the execution summary rather than internal chain
 
 | SIH requirement | Implemented solution | Evidence |
 | --- | --- | --- |
-| Remote-sensing adaptation | BLIP VQA adapted with LoRA on RSVQA data; BigEarthNet v2.0 land-cover checkpoint integrated | `experiments/adaptation/train_lora.py`, `checkpoints/rsvqa-blip-lora`, `Docs/training_runs/` |
+| Remote-sensing adaptation | BLIP VQA adapted with LoRA on RSVQA data; leakage-checked manifests and deterministic decoding; BigEarthNet v2.0 land-cover checkpoint integrated | `experiments/adaptation/train_lora.py`, `datasets/rsvqa/`, `checkpoints/rsvqa-blip-lora`, `Docs/training_runs/` |
 | Single-image VQA | BLIP + LoRA model path and deterministic spectral/pixel fallback | `backend/models/vqa/model.py`, `backend/api/endpoints/vqa.py` |
 | Additional single-image task | Both captioning and text-guided grounding | `backend/models/captioning/model.py`, `backend/models/grounding/model.py` |
 | Multitemporal analysis | Registration checks, pixel-difference map, change VQA, temporal explanation | `backend/models/change_detection/model.py`, `backend/models/change_vqa/model.py` |
 | Optical + SAR analysis | Coregistration validation and optical/backscatter fusion for water and built-up regions | `backend/models/optical_sar/model.py`, `backend/preprocessing/optical.py` |
 | Agentic orchestration | Classifier, registry, LangGraph state graph, conditional routing, state/checkpoint support | `backend/agent/` |
 | Evidence and auditability | Confidence, evidence, overlays, route reason, execution trace, optional PDF | `backend/evidence/`, `backend/api/endpoints/agent.py` |
-| Usable prototype | React upload, result, evidence, trace, and report-download dashboard | `frontend/src/main.jsx`, `frontend/src/styles.css` |
+| Usable prototype | React upload, result, evidence, trace, and report-download dashboard | `frontend/src/main.jsx`, `frontend/src/App.jsx`, `frontend/src/app.css` |
 
 Both preferred additional single-image capabilities were implemented: captioning and grounding.
 
@@ -108,7 +108,7 @@ datasets/
   fetch_real_rsvqa.py              RSVQA download/extraction utility
   rsvqa/                            Local RSVQA training and holdout data
   rsvqa_cpu80/                      Experimental 80-record CPU subset
-  samples/                          Sample manifest and generated examples
+  samples/                          Sample manifest, generated examples, and normal-RGB VQA records
   BigEarthNet.txt/                  Optional external BigEarthNet checkout
 
 experiments/
@@ -132,8 +132,9 @@ Docs/
 frontend/
   index.html                        Vite HTML entry point
   package.json                      React/Vite/Leaflet dependencies
-  src/main.jsx                      Dashboard application
-  src/styles.css                    Dashboard styling
+  src/main.jsx                      Dashboard application entry point
+  src/App.jsx                       Dashboard component structure
+  src/app.css                       Dashboard styling
 
 notebooks/
   remote_sensing_vlm_adaptation.ipynb Colab-oriented adaptation workflow
@@ -241,6 +242,9 @@ Model-backed path:
 - Components: `BlipProcessor` and `BlipForQuestionAnswering`.
 - Lazy loading on the first request.
 - Device selection: CUDA, MPS, or CPU.
+- `VQA_LOCAL_FILES_ONLY=true` is honored; offline loading does not retry with a network download.
+- Deterministic generation uses `max_new_tokens=16`, `num_beams=3`, `repetition_penalty=1.15`, and `length_penalty=1.0`.
+- Standalone number words are canonicalized for count answers, for example `one` becomes `1`.
 - Reports `inference_mode: "model"` and `fallback_active: false`.
 
 Fallback path:
@@ -434,7 +438,7 @@ Implemented workflows include:
 - PDF report download.
 - Responsive desktop and mobile styling.
 
-The dashboard always calls `/agent`; it does not expose a direct `analysis_type` selector. The backend URL is configured with `VITE_API_URL` and defaults to:
+The dashboard always calls `/agent`; it does not expose a direct `analysis_type` selector. The current frontend application is split between `frontend/src/main.jsx`, `frontend/src/App.jsx`, and `frontend/src/app.css`. The backend URL is configured with `VITE_API_URL` and defaults to:
 
 ```text
 http://127.0.0.1:8000/api/v1
@@ -458,7 +462,7 @@ The repository contains:
 - `datasets/rsvqa/train.jsonl`.
 - `datasets/rsvqa/test_holdout.jsonl`.
 
-The documented local training subset has 50 records. The fixed holdout contains 10 rows. `datasets/fetch_real_rsvqa.py` streams `dmarsili/RSVQA-LR-2k` from Hugging Face and writes local PNG images, metadata, and JSONL records.
+The canonical local split contains 40 training records and 10 held-out records. `datasets/rsvqa/train.jsonl` and `datasets/rsvqa/train_split.jsonl` contain samples 0-39; `datasets/rsvqa/test_holdout.jsonl` contains samples 40-49. The manifests use local paths and have zero image overlap. `datasets/samples/vqa_train.jsonl` contains four labeled normal-RGB examples for optional supervised augmentation. `datasets/fetch_real_rsvqa.py` streams `dmarsili/RSVQA-LR-2k` from Hugging Face and writes split manifests.
 
 `datasets/rsvqa_cpu80/` contains an 80-image/80-question extracted subset used for an experimental CPU run.
 
@@ -498,6 +502,19 @@ python experiments/adaptation/prepare_bigearthnet_manifest.py \
 - Configurable epochs, batch size, learning rate, seed, validation ratio, and output directory.
 - Exact normalized-answer validation.
 - Adapter, processor, and `run_config.json` output.
+- Relocation of image paths saved on another machine.
+- Missing-image and train/holdout image-overlap checks before model loading.
+- Optional repeated `--additional-jsonl` manifests for supervised domain augmentation.
+
+Recommended leakage-checked training command:
+
+```bash
+python experiments/adaptation/train_lora.py \\
+  --train-jsonl datasets/rsvqa/train.jsonl \\
+  --additional-jsonl datasets/samples/vqa_train.jsonl \\
+  --holdout-jsonl datasets/rsvqa/test_holdout.jsonl \\
+  --output-dir checkpoints/rsvqa-blip-lora
+```
 
 The Colab-oriented workflow is in `notebooks/remote_sensing_vlm_adaptation.ipynb`.
 
@@ -521,9 +538,9 @@ Record: `Docs/training_runs/2026-08-24-rsvqa-adapter.md`
 - LoRA dropout: `0.05`.
 - Target modules: `query`, `value`.
 - Trainable parameters: `1,179,648`.
-- Best validation accuracy: `0.50` (`5/10`, epoch 5).
+- Historical best validation accuracy: `0.50` (`5/10`, epoch 5).
 - Average loss at epoch 8: `1.0638`.
-- Status: successfully executed and promoted as the configured VQA adapter.
+- Status: remains configured, but is experimental; it measures `0.60` (`6/10`) exact accuracy on the repaired holdout and is weak on numeric counting.
 
 The training command recorded for the run was:
 
@@ -537,7 +554,7 @@ python experiments/adaptation/train_lora.py \
   --seed 42
 ```
 
-The run record notes a discrepancy between the command's batch-size argument and the recorded effective batch size. That should be clarified in a future reproducibility pass.
+The original run used a contaminated 50-record manifest. New runs must use the strict split and overlap check above.
 
 ### 11.3 CPU experiment
 
@@ -586,7 +603,7 @@ Current status:
 - Metric primitives are tested.
 - The available 10-row manifest contains earlier predictions and is not a representative registry benchmark.
 - An adapted-versus-generic VLM comparison remains pending.
-- The selected VQA score of `0.50` is prototype evidence on a small fixed holdout, not a production claim.
+- The selected VQA score is `0.60` (`6/10`) exact accuracy on the repaired zero-overlap holdout; it is prototype evidence, not a production claim.
 
 ---
 
@@ -627,7 +644,9 @@ Known test caveats:
 | `VQA_USE_FALLBACK` | `false`; set `true` for deterministic pixel fallback |
 | `VQA_LOCAL_FILES_ONLY` | `true`; prevents automatic base-model download |
 | `VQA_MAX_NEW_TOKENS` | `16` |
-| `VQA_NUM_BEAMS` | `4` |
+| `VQA_NUM_BEAMS` | `3` |
+| `VQA_REPETITION_PENALTY` | `1.15` |
+| `VQA_LENGTH_PENALTY` | `1.0` |
 | `CAPTION_USE_FALLBACK` | `true` |
 | `VQA_ADAPTER_PATH` | Local VQA adapter directory |
 | `BIGEARTHNET_MODEL_ID` | BigEarthNet ConvMixer checkpoint |
@@ -757,9 +776,9 @@ Partially complete. Accuracy, IoU, and F1 runners exist and execute, but the ava
 
 ## 17. Known Limitations and Risks
 
-1. **Small VQA validation set:** The promoted adapter's `0.50` score is only `5/10` on a fixed local holdout.
+1. **Small VQA validation set:** The configured adapter scores `0.60` (`6/10`) on the repaired 10-image holdout; numeric counting and normal RGB questions remain weak.
 2. **No generic comparison:** Adapted-versus-generic VLM benchmarking is still pending.
-3. **Non-representative registry benchmark:** The current 10-row evaluation manifest contains earlier predictions.
+3. **Limited VQA coverage:** The strict holdout contains only 10 examples, and the normal-RGB augmentation manifest contains only four labeled examples.
 4. **Base-model dependency:** The repository has the LoRA adapter but requires cached BLIP base weights.
 5. **Fallback baselines:** Captioning, grounding, change detection, and optical/SAR are deterministic prototype baselines rather than trained specialist models.
 6. **VQA input limitation:** The BLIP adapter accepts RGB visualizations, not raw multispectral or SAR rasters.
@@ -774,7 +793,7 @@ Partially complete. Accuracy, IoU, and F1 runners exist and execute, but the ava
 15. **Process-memory persistence:** Agent state is not durable across process restarts.
 16. **Native history mismatch:** The history helper does not currently unify fallback and native LangGraph checkpoint history.
 17. **Frontend browser verification:** The production build passes; interactive browser verification still requires a running API.
-18. **Training record discrepancy:** The selected run records batch size `1`, while its command specifies `--batch-size 2`; reproducibility documentation should clarify the effective value.
+18. **Historical training record:** The selected adapter was trained before the manifest-leakage repair; it remains useful as a baseline but should be replaced after a larger clean retraining run.
 
 ---
 
@@ -783,7 +802,7 @@ Partially complete. Accuracy, IoU, and F1 runners exist and execute, but the ava
 1. Resolve and test one authoritative BigEarthNet band contract: either the current 12-band Sentinel-2 classifier or a complete 14-band Sentinel-1/Sentinel-2 path.
 2. Clone and pin the reBEN dependency, then run end-to-end inference on an official compatible GeoTIFF.
 3. Build a leakage-free, representative evaluation split for every registry specialist.
-4. Compare the adapted VQA model against the generic BLIP baseline using identical data and metrics.
+4. Retrain VQA on a larger clean RSVQA dataset plus representative normal-RGB examples, then compare the adapted model against generic BLIP using identical data and metrics.
 5. Unify native LangGraph and fallback history access and add a regression test for both paths.
 6. Strengthen pair validation with CRS, transform, resolution, overlap, and registration checks.
 7. Embed overlays and source-image evidence in PDF reports.
@@ -823,7 +842,7 @@ This audit was completed before any UI, authentication, upload-security, or conc
 
 ### 21.1 Current frontend structure
 
-The frontend is currently a single React component in `frontend/src/main.jsx`, styled by `frontend/src/styles.css`. It provides:
+The frontend is a React application split across `frontend/src/main.jsx`, `frontend/src/App.jsx`, and `frontend/src/app.css`. It provides:
 
 - A top bar with SatQuery branding and workspace status.
 - Two upload cards: primary image and optional comparison image.
@@ -926,8 +945,8 @@ Phase 5 should introduce the smallest reliable job/isolation model justified by 
 
 Recommended frontend changes:
 
-- Modify `frontend/src/main.jsx` to introduce page/workflow state and reusable page components.
-- Modify `frontend/src/styles.css` to provide the institutional multi-page visual system.
+- Modify `frontend/src/App.jsx` and `frontend/src/main.jsx` to introduce page/workflow state and reusable page components.
+- Modify `frontend/src/app.css` to provide the institutional multi-page visual system.
 - Modify `frontend/package.json` only if a router dependency is needed; a lightweight state-driven workflow may avoid adding a dependency.
 - Add a frontend API/service module, for example `frontend/src/api/client.js`, so request construction and response handling are not duplicated.
 - Add page/component modules such as `frontend/src/pages/LoginPage.jsx`, `UploadPage.jsx`, `ValidationPage.jsx`, `ClassificationPage.jsx`, `AnalysisPage.jsx`, and `ReportPage.jsx` if the project remains componentized by file.
@@ -1026,7 +1045,7 @@ The phased modernization work began after the Phase 0 audit.
 - Added an auditable model-output evidence guard that corrects high-signal contradictions for water, vegetation, built-up, and dominant-class questions while preserving the raw adapter answer in evidence.
 - Added `datasets/download_online_samples.py` for Wikimedia Commons earth-observation images and `tests/verify_online_vqa.py` for online/local VQA smoke checks.
 - Added focused regression tests in `tests/test_vqa_evidence_guard.py` for contradictory and consistent model answers.
-- Re-verified the BLIP + LoRA adapter on CUDA: model-backed smoke test passes and the adapter is genuinely loaded, but the 10-row holdout audit shows only `6/10` exact matches before safety abstentions and `4/10` exact matches after abstaining on unsupported exact-count questions. This confirms the underlying adapter is undertrained for dense counting/geometry questions, rather than silently falling back.
+- Re-verified the BLIP + LoRA adapter on CPU: model-backed loading passes and the adapter is genuinely loaded. The repaired 10-row holdout audit shows `6/10` exact matches; normal RGB sample questions remain weak, especially vegetation and urban/water presence questions. This confirms the underlying adapter is undertrained rather than silently falling back.
 - Audited all specialist contracts: explicit task/image-count mismatches are rejected, unsupported grounding targets return no fabricated boxes, direct change specialists reject mismatched dimensions instead of resizing silently, and incomplete BigEarthNet checkpoints fail fast.
 - Land-cover endpoint was exercised with the available 12-band sample and correctly returned `503` because the `reben_publication` module is not importable in the current environment; no unreliable prediction was produced.
 - Full deterministic specialist, agent, evaluation, model-backed VQA, and contract test suites pass after the audit fixes.
@@ -1046,4 +1065,4 @@ The following are not claimed as complete until dependencies are installed and b
 - The frontend build and browser workflow have not been verified.
 - Automated authentication, cross-user isolation, upload-security, cleanup, and concurrency tests still need to be added and executed.
 
-The model-backed VQA smoke test passed with the local adapter and CUDA. Official BigEarthNet inference remains dependent on an importable reBEN checkout and model assets. The current environment reset both Hugging Face and Wikimedia requests, so no online images were downloaded; on a connected machine run `python datasets/download_online_samples.py --count 5`, followed by `python tests/verify_online_vqa.py`. The evidence guard improves high-signal contradictions, exposes provenance, and refuses unsupported counts, but does not replace retraining. The original `0.50` training-run benchmark remains unchanged and no perfect-VQA claim is made.
+The model-backed VQA smoke test passed with the local adapter and CPU. Official BigEarthNet inference remains dependent on an importable reBEN checkout and model assets. The evidence guard exposes provenance and rejects malformed outputs, but does not replace retraining. The original `0.50` training-run benchmark is historical; the repaired holdout measurement is `0.60` and no perfect-VQA claim is made.
