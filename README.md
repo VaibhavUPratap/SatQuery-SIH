@@ -2,6 +2,23 @@
 
 SatQuery AI is an agentic remote-sensing vision-language assistant for analyzing satellite imagery via natural-language text queries. The system automatically routes queries to specialist tools (e.g., Visual Question Answering, Change Detection, Optical+SAR Fusion, Region Grounding), processes imagery, and returns evidence-grounded answers with an execution trace.
 
+## Real bi-temporal GeoTIFF smoke test
+
+Download two public Sentinel-2 acquisitions for the same area:
+
+```bash
+.venv/bin/python datasets/download_real_temporal_tiffs.py
+```
+
+The files are written to `datasets/real_temporal_tiffs/` as compact 512 x 512
+windows, so they can be uploaded through the dashboard's 100 MB limit. Their
+acquisition dates, scene IDs, cloud cover, and source URLs are recorded in
+`datasets/real_temporal_tiffs/manifest.json`. Run the temporal specialists with
+the two TIFF paths as T1 and T2. The loader supports RGB GeoTIFFs and
+12-band Sentinel-2 GeoTIFFs; for 12-band inputs it uses B04/B03/B02 as the
+display RGB channels after robust normalization. The included public pair is
+the Sentinel-2 L2A `TCI` RGB asset, not a 12-band analysis product.
+
 ## Project Structure
 
 ```text
@@ -42,8 +59,20 @@ SatQuery-AI/
 
 Start the FastAPI server locally:
 ```bash
+cd /path/to/SatQuery-SIH
 python3 -m uvicorn backend.api.main:app --reload --host 127.0.0.1 --port 8000
 ```
+
+Run the command from the repository root. If your terminal is already inside
+`backend/`, use Uvicorn's app directory option instead:
+
+```bash
+python3 -m uvicorn backend.api.main:app --app-dir .. --reload --host 127.0.0.1 --port 8000
+```
+
+Starting `backend.api.main:app` from inside `backend/` without `--app-dir ..`
+causes `ModuleNotFoundError: No module named 'backend'` because Python cannot
+see the repository parent directory.
 
 The interactive API documentation will be available at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
 

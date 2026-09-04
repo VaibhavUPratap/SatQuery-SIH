@@ -319,6 +319,19 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
                 }
             )
 
+        if any(kw in question.lower() for kw in ("count", "how many", "number of", "amount of")):
+            return (
+                "This RGB VQA model cannot reliably count individual remote-sensing objects. "
+                "The image may contain the requested class, but an exact count requires a "
+                "trained object-detection or instance-segmentation model.",
+                0.25,
+                {
+                    "validation_status": "unsupported_exact_count",
+                    "raw_answer": cleaned,
+                    "visual_metrics": visual_metrics,
+                }
+            )
+
         guarded_answer, guard_status = RemoteSensingVQAModel._apply_evidence_guard(
             cleaned, question, vegetation, water, water_region, structural
         )

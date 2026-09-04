@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 from PIL import Image
 from backend.models.base import BaseSpecialistModel
+from backend.preprocessing.temporal import load_temporal_rgb
 
 logger = logging.getLogger("satquery.change_vqa")
 
@@ -50,8 +51,8 @@ class ChangeVQAModel(BaseSpecialistModel):
         start_time = time.time()
 
         # Load and align
-        img_a = cv2.imread(image_path_a)
-        img_b = cv2.imread(image_path_b)
+        img_a = load_temporal_rgb(image_path_a)
+        img_b = load_temporal_rgb(image_path_b)
 
         if img_a is None or img_b is None:
             raise ValueError("Could not read one or both images.")

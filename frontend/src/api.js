@@ -20,11 +20,12 @@ export async function runAgent({ primary, comparison, query, threadId, token }) 
   return payload;
 }
 
-export async function submitJob({ primary, comparison, query, token }) {
+export async function submitJob({ primary, comparison, query, analysisType = 'auto', token }) {
   const body = new FormData();
   body.append('file_1', primary);
   if (comparison) body.append('file_2', comparison);
   body.append('query', query.trim());
+  body.append('analysis_type', analysisType);
   body.append('include_report', 'true');
   const response = await fetch(`${API}/jobs`, { method: 'POST', body, headers: token ? { Authorization: `Bearer ${token}` } : {} });
   const payload = await response.json().catch(() => ({}));

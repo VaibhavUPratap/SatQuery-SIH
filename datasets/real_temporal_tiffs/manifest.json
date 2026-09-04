@@ -1,0 +1,16 @@
+[
+  {
+    "file": "sentinel2_temporal_t1.tif",
+    "source_url": "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/10/S/EG/2020/1/S2A_10SEG_20200105_0_L2A/TCI.tif",
+    "scene_id": "S2A_10SEG_20200105_0_L2A",
+    "acquired": "2020-01-05T19:04:04.089000Z",
+    "cloud_cover": 0.353104
+  },
+  {
+    "file": "sentinel2_temporal_t2.tif",
+    "source_url": "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/10/S/EG/2020/1/S2B_10SEG_20200110_0_L2A/TCI.tif",
+    "scene_id": "S2B_10SEG_20200110_0_L2A",
+    "acquired": "2020-01-10T19:04:04.220000Z",
+    "cloud_cover": 9.121808
+  }
+]

@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { ImageOverlay, MapContainer, Rectangle } from 'react-leaflet';
 import L from 'leaflet';
+import { fromBlob } from 'geotiff';
 import { downloadPdf, getJob, login, submitJob } from './api';
 import './app.css';
 
 const stages = ['LOGIN', 'DATA', 'VALIDATION', 'CLASSIFICATION', 'ANALYSIS', 'REPORT'];
+const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 
 const MODES = [
   { id: 'OPTICAL_SINGLE', label: 'Single Optical', sensor: 'Sentinel-2 Optical', desc: 'Optical surface reflectance RGB / Multi-spectral GeoTIFF' },
@@ -72,6 +74,81 @@ function FileMetaCard({ label, file, modalityHint }) {
   );
 }
 
+function FilePreview({ file }) {
+  const [preview, setPreview] = useState('');
+  const [previewError, setPreviewError] = useState('');
+  const isTiff = /\.tiff?$/i.test(file?.name || '');
+
+  useEffect(() => {
+    if (!file) return undefined;
+    let active = true;
+    let objectUrl = '';
+
+    async function createPreview() {
+      setPreviewError('');
+      if (!isTiff) {
+        objectUrl = URL.createObjectURL(file);
+        if (active) setPreview(objectUrl);
+        return;
+      }
+
+      try {
+        const source = await fromBlob(file);
+        const image = await source.getImage();
+        const samplesPerPixel = image.getSamplesPerPixel();
+        const samples = samplesPerPixel >= 3 ? [0, 1, 2] : [0];
+        const width = Math.min(640, image.getWidth());
+        const height = Math.min(360, image.getHeight());
+        const rasters = await image.readRasters({ samples, width, height, interleave: false });
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext('2d');
+        const pixels = context.createImageData(width, height);
+        const channels = samples.map((_, index) => rasters[index]);
+        const ranges = channels.map((channel) => {
+          let min = Infinity;
+          let max = -Infinity;
+          for (const value of channel) {
+            if (Number.isFinite(value)) {
+              min = Math.min(min, value);
+              max = Math.max(max, value);
+            }
+          }
+          return { min, max: max > min ? max : min + 1 };
+        });
+        for (let index = 0; index < width * height; index += 1) {
+          const red = channels[0][index];
+          const green = channels[Math.min(1, channels.length - 1)][index];
+          const blue = channels[Math.min(2, channels.length - 1)][index];
+          pixels.data[index * 4] = Math.max(0, Math.min(255, ((red - ranges[0].min) / (ranges[0].max - ranges[0].min)) * 255));
+          pixels.data[index * 4 + 1] = Math.max(0, Math.min(255, ((green - ranges[Math.min(1, ranges.length - 1)].min) / (ranges[Math.min(1, ranges.length - 1)].max - ranges[Math.min(1, ranges.length - 1)].min)) * 255));
+          pixels.data[index * 4 + 2] = Math.max(0, Math.min(255, ((blue - ranges[Math.min(2, ranges.length - 1)].min) / (ranges[Math.min(2, ranges.length - 1)].max - ranges[Math.min(2, ranges.length - 1)].min)) * 255));
+          pixels.data[index * 4 + 3] = 255;
+        }
+        context.putImageData(pixels, 0, 0);
+        if (active) setPreview(canvas.toDataURL('image/jpeg', 0.88));
+      } catch (error) {
+        if (active) setPreviewError('Raster preview unavailable; the server will process this file.');
+      }
+    }
+
+    createPreview();
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [file, isTiff]);
+
+  return (
+    <div className={`file-preview ${preview ? 'ready' : 'loading'}`}>
+      {preview ? <img src={preview} alt={`Preview of ${file.name}`} /> : <div className="preview-placeholder"><span>{isTiff ? 'TIFF' : 'IMG'}</span><small>Preparing preview...</small></div>}
+      {previewError && <small className="preview-note">{previewError}</small>}
+      {preview && isTiff && <small className="preview-note">RGB display preview generated from raster bands</small>}
+    </div>
+  );
+}
+
 function FileInput({ label, sublabel, file, modalityHint, onChange }) {
   return (
     <div className="file-input-wrapper">
@@ -84,6 +161,7 @@ function FileInput({ label, sublabel, file, modalityHint, onChange }) {
         <span className="input-hint">{file ? `${(file.size / 1024 / 1024).toFixed(2)} MB ready` : 'Click to browse satellite raster'}</span>
         <input type="file" accept="image/*,.tif,.tiff" onChange={(event) => onChange(event.target.files?.[0] || null)} />
       </label>
+      {file && <FilePreview file={file} />}
       <FileMetaCard label={label} file={file} modalityHint={modalityHint} />
     </div>
   );
@@ -187,6 +265,10 @@ export default function App() {
   async function analyze(event) {
     event.preventDefault();
     if (!primary || !query.trim()) return;
+    if ([primary, comparison].filter(Boolean).some((file) => file.size > MAX_UPLOAD_BYTES)) {
+      setError('Each TIFF or image must be smaller than 100 MB. Use a clipped GeoTIFF window for full satellite tiles.');
+      return;
+    }
     if ((uploadMode === 'OPTICAL_SAR' || uploadMode === 'TEMPORAL') && !comparison) {
       setError(`Both files are required for ${uploadMode === 'OPTICAL_SAR' ? 'Optical + SAR' : 'Bi-Temporal'} analysis.`);
       return;
@@ -195,7 +277,12 @@ export default function App() {
     setLoading(true);
     setError('');
     try {
-      const submitted = await submitJob({ primary, comparison, query, token });
+      const analysisType = uploadMode === 'TEMPORAL'
+        ? 'change'
+        : uploadMode === 'OPTICAL_SAR'
+          ? 'optical_sar'
+          : 'auto';
+      const submitted = await submitJob({ primary, comparison, query, analysisType, token });
       let job = submitted;
       const pollingStartedAt = Date.now();
       while (job.status === 'QUEUED' || job.status === 'PROCESSING') {

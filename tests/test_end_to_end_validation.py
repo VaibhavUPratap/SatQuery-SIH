@@ -108,6 +108,23 @@ def test_e2e_bitemporal_change_detection_and_vqa():
         assert base64.b64decode(p["report_pdf_b64"]).startswith(b"%PDF")
 
 
+def test_bitemporal_models_accept_sentinel2_geotiffs():
+    tiff_a = os.path.join(SAMPLES_DIR, "real_12band_s2.tif")
+    tiff_b = os.path.join(SAMPLES_DIR, "real_12band_s2.tif")
+    from backend.models.change_detection.model import ChangeDetectionModel
+    from backend.models.change_vqa.model import ChangeVQAModel
+
+    detection = ChangeDetectionModel().run({"image_path_a": tiff_a, "image_path_b": tiff_b})
+    answer = ChangeVQAModel().run({
+        "image_path_a": tiff_a,
+        "image_path_b": tiff_b,
+        "question": "What changed between these two dates?",
+    })
+
+    assert detection["change_ratio"] == 0.0
+    assert answer["evidence"]["temporal_metrics"]["vegetation_change"] == 0.0
+
+
 def test_e2e_optical_sar_crossmodal_fusion():
     opt_path = os.path.join(EVAL_DIR, "optical_sar_pairs", "opt_sar_01_coastal_port_optical.png")
     sar_path = os.path.join(EVAL_DIR, "optical_sar_pairs", "opt_sar_01_coastal_port_sar.png")

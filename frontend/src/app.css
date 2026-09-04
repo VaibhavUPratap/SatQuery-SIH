@@ -24,6 +24,12 @@
 
 /* File Meta Card */
 .file-meta-card { padding: 10px 14px; background: #141f1e; border: 1px solid #2d3c3a; border-top: none; }
+.file-preview { position: relative; min-height: 164px; overflow: hidden; display: grid; place-items: center; background: #0d1515; border: 1px solid #31403e; border-bottom: 0; }
+.file-preview img { display: block; width: 100%; height: 164px; object-fit: cover; }
+.preview-placeholder { display: grid; place-items: center; gap: 8px; color: #9ad49e; }
+.preview-placeholder span { display: grid; place-items: center; width: 46px; height: 46px; border: 1px solid #52645e; color: #ef7657; font: 500 11px 'DM Mono'; }
+.preview-placeholder small, .preview-note { color: #71807b; font: 9px 'DM Mono'; letter-spacing: .04em; text-transform: uppercase; }
+.preview-note { position: absolute; right: 10px; bottom: 8px; padding: 4px 6px; color: #d9ded7; background: rgba(16, 23, 24, .86); }
 .meta-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .badge-sensor { font: 500 10px 'DM Mono'; color: #9ad49e; }
 .badge-status { font: 500 9px 'DM Mono'; background: #21352f; color: #9ad49e; padding: 2px 6px; }

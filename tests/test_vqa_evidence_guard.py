@@ -135,6 +135,18 @@ def test_land_coverage_reports_uncertainty_instead_of_generic_error():
     assert evidence["validation_status"] == "uncertain_rgb_land_cover"
 
 
+def test_counting_never_returns_unverified_model_number():
+    with Image.open(ROOT / "datasets/rsvqa/rsvqa_sample_0.png") as image:
+        answer, confidence, evidence = RemoteSensingVQAModel._validate_and_sanitize_output(
+            "104", "What is the number of buildings?", image
+        )
+
+    assert "cannot reliably count" in answer
+    assert confidence == 0.25
+    assert evidence["validation_status"] == "unsupported_exact_count"
+    assert evidence["raw_answer"] == "104"
+
+
 def test_fallback_reports_why_model_inference_was_skipped():
     """Verify fallback metadata distinguishes configuration from model failure."""
     image_path = ROOT / "datasets/samples/lake_suburb.png"
