@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from backend.agent.graph import classify_intent_node
 from backend.agent.task_classifier import TaskClassifier
 from backend.models.grounding.model import RemoteSensingGroundingModel
 
@@ -25,3 +26,15 @@ def test_unknown_grounding_target_does_not_return_fake_boxes():
     assert result["status"] == "unsupported_query"
     assert result["bounding_boxes"] == []
     assert result["confidence"] == 0.0
+
+
+def test_auto_land_cover_query_on_rgb_routes_to_vqa():
+    result = classify_intent_node({
+        "query": "What land cover is visible in this image?",
+        "image_count": 1,
+        "requested_task": "auto",
+        "meta_1": {"bands": 3},
+    })
+
+    assert result["route_task"] == "vqa"
+    assert "RGB image detected" in result["route_reason"]

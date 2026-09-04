@@ -1,5 +1,6 @@
 import os
 import re
+import threading
 import time
 import logging
 from typing import Any, Dict, Tuple
@@ -26,6 +27,8 @@ _NUMBER_WORDS = {
     "ten": "10",
 }
 
+_MODEL_LOAD_LOCK = threading.Lock()
+
 
 class RemoteSensingVQAModel(BaseSpecialistModel):
     """
@@ -51,6 +54,10 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
             logger.info("VQA model will load lazily on the first model-backed request.")
 
     def _load_model(self) -> None:
+        with _MODEL_LOAD_LOCK:
+            self._load_model_unlocked()
+
+    def _load_model_unlocked(self) -> None:
         """Load the base BLIP checkpoint and its fine-tuned local LoRA adapter."""
         if self.model is not None:
             return
@@ -250,12 +257,15 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
         pixels = np.asarray(image.convert("RGB"), dtype=np.int16)
         red, green, blue = pixels[:, :, 0], pixels[:, :, 1], pixels[:, :, 2]
         vegetation = float(np.mean((green > red * 1.05 + 4) & (green > blue * 1.05 + 4)))
-        water = float(np.mean((blue > red * 1.10 + 6) & (blue > green * 1.05 + 6) & (blue < 245)))
+        water_mask = (blue > red * 1.10 + 6) & (blue > green * 1.05 + 6) & (blue < 245)
+        water = float(np.mean(water_mask))
+        water_region = RemoteSensingVQAModel._largest_connected_ratio(water_mask)
         structural = float(np.mean((np.abs(red - green) < 15) & (np.abs(green - blue) < 15) & (((red + green + blue) / 3) > 80) & (((red + green + blue) / 3) < 200)))
         
         visual_metrics = {
             "vegetation_ratio": round(vegetation, 4),
             "water_ratio": round(water, 4),
+            "water_region_ratio": round(water_region, 4),
             "structural_ratio": round(structural, 4),
         }
 
@@ -309,6 +319,21 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
                 }
             )
 
+        guarded_answer, guard_status = RemoteSensingVQAModel._apply_evidence_guard(
+            cleaned, question, vegetation, water, water_region, structural
+        )
+        if guarded_answer != cleaned:
+            guarded_confidence = 0.42 if guard_status == "uncertain_rgb_land_cover" else 0.62
+            return (
+                guarded_answer,
+                guarded_confidence,
+                {
+                    "validation_status": guard_status,
+                    "raw_answer": cleaned,
+                    "visual_metrics": visual_metrics,
+                }
+            )
+
         # Validation passed: return clean model answer with honest confidence score
         confidence = 0.85 if len(words) <= 5 else 0.75
 
@@ -320,6 +345,107 @@ class RemoteSensingVQAModel(BaseSpecialistModel):
                 "visual_metrics": visual_metrics,
             }
         )
+
+    @staticmethod
+    def _apply_evidence_guard(
+        answer: str,
+        question: str,
+        vegetation: float,
+        water: float,
+        water_region: float,
+        structural: float,
+    ) -> Tuple[str, str]:
+        """Correct short, contradictory model outputs only when visual evidence is strong."""
+        question_lower = question.lower()
+        answer_lower = answer.lower()
+        short_or_numeric = (
+            len(answer.split()) <= 3
+            and (re.fullmatch(r"[0-9]+(?:\.[0-9]+)?", answer_lower) is not None
+                 or answer_lower in {
+                     "a lot", "many", "few", "yes", "no", "green", "blue", "grass",
+                     "vegetation", "forest", "water", "urban", "rural", "bare land",
+                 })
+        )
+        if not short_or_numeric:
+            if any(term in question_lower for term in ("land region", "land area", "land cover", "land coverage", "terrain")):
+                description = RemoteSensingVQAModel._describe_land_coverage(
+                    vegetation, water, water_region, structural
+                )
+                confirmed_water = water if water > 0.35 and water_region > 0.20 else 0.0
+                status = "uncertain_rgb_land_cover" if max(vegetation, confirmed_water, structural) <= 0.05 else "corrected_by_visual_evidence"
+                return description, status
+            return answer, "validated"
+        if any(kw in question_lower for kw in ("count", "how many", "number of", "amount of")):
+            return answer, "validated"
+
+        numeric_output = re.fullmatch(r"[0-9]+(?:\.[0-9]+)?", answer_lower) is not None
+
+        if any(term in question_lower for term in ("land region", "land area", "land cover", "land coverage", "terrain")):
+            description = RemoteSensingVQAModel._describe_land_coverage(
+                vegetation, water, water_region, structural
+            )
+            confirmed_water = water if water > 0.35 and water_region > 0.20 else 0.0
+            status = "uncertain_rgb_land_cover" if max(vegetation, confirmed_water, structural) <= 0.05 else "corrected_by_visual_evidence"
+            return description, status
+
+        if any(term in question_lower for term in ("water", "river", "lake", "ocean", "sea")):
+            water_confirmed = water > 0.35 and water_region > 0.20
+            if water_confirmed and (numeric_output or answer_lower in {"no", "a lot", "many", "few"}):
+                return "Yes, a water region is visible in the image.", "corrected_by_visual_evidence"
+            if not water_confirmed and (numeric_output or answer_lower in {"yes", "a lot", "many"}):
+                return "No water region is confirmed by the available RGB evidence.", "corrected_by_visual_evidence"
+
+        if any(term in question_lower for term in ("vegetation", "forest", "green", "agriculture", "crop")):
+            if vegetation > 0.05 and (numeric_output or answer_lower in {"no", "a lot", "many", "few"}):
+                return "Yes, vegetation is visible in the image.", "corrected_by_visual_evidence"
+            if vegetation <= 0.05 and (numeric_output or answer_lower in {"yes", "a lot", "many"}):
+                return "No significant vegetation is visible in the image.", "corrected_by_visual_evidence"
+
+        if any(term in question_lower for term in ("built-up", "urban", "building", "city", "road", "infrastructure")):
+            if structural > 0.05 and (numeric_output or answer_lower in {"no", "a lot", "many", "few"}):
+                return "Yes, built-up land features are visible in the image.", "corrected_by_visual_evidence"
+            if structural <= 0.05 and (numeric_output or answer_lower in {"yes", "a lot", "many"}):
+                return "No significant built-up land features are visible in the image.", "corrected_by_visual_evidence"
+
+        return answer, "validated"
+
+    @staticmethod
+    def _describe_land_coverage(vegetation: float, water: float, water_region: float, structural: float) -> str:
+        """Give a qualitative RGB interpretation without presenting thresholds as measured area."""
+        labels = []
+        if vegetation > 0.05:
+            labels.append("vegetated land")
+        if water > 0.35 and water_region > 0.20:
+            labels.append("water")
+        if structural > 0.05:
+            labels.append("built-up or exposed structural surfaces")
+        if not labels:
+            return (
+                "The scene is most consistent with a mixed or other land surface. "
+                "No specific water, vegetation, or built-up class is confirmed from "
+                "this RGB view; calibrated multispectral data is required for a definitive classification."
+            )
+        if len(labels) == 1:
+            description = labels[0]
+        else:
+            description = ", ".join(labels[:-1]) + ", and " + labels[-1]
+        return (
+            f"The image appears to contain {description}. "
+            "This is a qualitative RGB assessment; exact land-cover percentages "
+            "require calibrated segmentation or multispectral data."
+        )
+
+    @staticmethod
+    def _largest_connected_ratio(mask: np.ndarray) -> float:
+        """Measure the largest spatially connected region represented by a mask."""
+        try:
+            import cv2
+            components, _, stats, _ = cv2.connectedComponentsWithStats(mask.astype(np.uint8), 8)
+            if components <= 1:
+                return 0.0
+            return float(np.max(stats[1:, cv2.CC_STAT_AREA]) / mask.size)
+        except Exception:
+            return 0.0
 
     def _run_fallback(self, image_path: str, question: str, start_time: float, error_msg: str = None) -> Dict[str, Any]:
         """

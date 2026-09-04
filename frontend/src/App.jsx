@@ -197,7 +197,11 @@ export default function App() {
     try {
       const submitted = await submitJob({ primary, comparison, query, token });
       let job = submitted;
+      const pollingStartedAt = Date.now();
       while (job.status === 'QUEUED' || job.status === 'PROCESSING') {
+        if (Date.now() - pollingStartedAt > 120000) {
+          throw new Error('Analysis is taking too long. Please try again or use a smaller image.');
+        }
         await new Promise((resolve) => setTimeout(resolve, 500));
         job = await getJob(submitted.job_id, token);
       }

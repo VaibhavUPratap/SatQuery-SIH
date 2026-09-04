@@ -60,12 +60,12 @@ The destructive heuristic text replacement of earlier prototypes has been replac
    * **Punctuation-Only Detection:** Rejects pure punctuation or non-alphanumeric noise (`"..."`, `"?"`).
    * **Excessive Length Detection:** Flags runaway generation exceeding 120 characters or 20 words for VQA.
    * **Repetitive Loop Detection:** Flags repeated single-token loops (e.g., `"water water water"`).
-2. **Honest Fallback String:**
+4. **Evidence-aware answer handling:**
    If an answer fails validation, the system outputs:
    $$\text{"Unable to determine a reliable answer from the provided image."}$$
-   The system **never fabricates** synthetic answers or hardcoded percentage overrides.
+  For high-signal water, vegetation, built-up, and land-cover questions, short contradictory outputs such as `no`, `0`, `1`, `green`, or `a lot` are corrected to a conservative visual-evidence statement. Land-coverage questions always return a qualitative RGB interpretation and explicitly avoid exact percentages, because RGB thresholds are not calibrated land-cover segmentation. The original output remains in `evidence.raw_answer`, and corrected responses use `validation_status: "corrected_by_visual_evidence"` with reduced confidence. The system does not claim exact object counts from RGB imagery.
 3. **Spectral Diagnostic Metrics:**
-   Auxiliary spectral metrics (vegetation ratio, water ratio, built-up structural ratio) are computed and transparently placed in `evidence.visual_metrics` without mutating the model's textual answer.
+  Auxiliary spectral metrics (vegetation ratio, water ratio, built-up structural ratio) are computed and transparently placed in `evidence.visual_metrics` and are used only for conservative qualitative contradiction checks. They are not presented as measured land-cover percentages.
 
 ---
 

@@ -89,12 +89,15 @@ def _run_job(
         with _lock:
             if job_id in _jobs:
                 status_str = "COMPLETED" if result.get("status") == "success" else "FAILED"
-                _jobs[job_id].update({"status": status_str, "result": result})
+                update = {"status": status_str, "result": result}
+                if status_str == "FAILED":
+                    update["error"] = result.get("detail") or "Analysis failed during processing."
+                _jobs[job_id].update(update)
     except Exception as exc:
         logger.exception("Error executing job %s", job_id)
         with _lock:
             if job_id in _jobs:
-                _jobs[job_id].update({"status": "FAILED", "error": "Analysis job failed."})
+                _jobs[job_id].update({"status": "FAILED", "error": f"Analysis failed: {exc}"})
     finally:
         # Mandatory temporary file & isolated directory cleanup
         for path in paths:

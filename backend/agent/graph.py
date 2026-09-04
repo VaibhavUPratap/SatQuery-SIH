@@ -110,25 +110,35 @@ def classify_intent_node(state: AgentState) -> Dict[str, Any]:
             "execution_trace": trace + [{"node": "classify_intent", "status": "failed", "error": str(exc)}],
         }
 
-    if decision.task in {"change", "optical_sar"} and not state.get("file_2_path"):
-        msg = f"{decision.task} analysis requires two images."
+    route_task = decision.task
+    route_reason = decision.reason
+    primary_bands = (state.get("meta_1") or {}).get("bands")
+    if requested == "auto" and decision.task == "land_cover" and primary_bands != 12:
+        route_task = "vqa"
+        route_reason = (
+            "RGB image detected; routed the visible land/water question to VQA. "
+            "BigEarthNet land-cover classification requires a 12-band Sentinel-2 raster."
+        )
+
+    if route_task in {"change", "optical_sar"} and not state.get("file_2_path"):
+        msg = f"{route_task} analysis requires two images."
         return {
             "is_valid": False,
             "error_message": msg,
-            "route_task": decision.task,
-            "route_reason": decision.reason,
+            "route_task": route_task,
+            "route_reason": route_reason,
             "execution_trace": trace + [{"node": "classify_intent", "status": "failed", "error": msg}],
         }
 
     trace_entry = {
         "node": "classify_intent",
         "status": "passed",
-        "selected_task": decision.task,
-        "reason": decision.reason,
+        "selected_task": route_task,
+        "reason": route_reason,
     }
     return {
-        "route_task": decision.task,
-        "route_reason": decision.reason,
+        "route_task": route_task,
+        "route_reason": route_reason,
         "execution_trace": trace + [trace_entry],
     }
 
