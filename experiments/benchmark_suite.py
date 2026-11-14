@@ -24,13 +24,10 @@ from PIL import Image
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from backend.evaluation.metrics import accuracy, binary_f1, binary_iou
-from backend.models.change_detection.model import ChangeDetectionModel
-from backend.models.grounding.model import RemoteSensingGroundingModel
-from backend.models.optical_sar.model import OpticalSARFusionModel
-from backend.models.vqa.model import RemoteSensingVQAModel
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATASETS_DIR = os.path.join(os.path.dirname(BASE_DIR), "datasets", "evaluation_suite")
+PROJECT_DIR = os.path.dirname(BASE_DIR)
 SUMMARY_PATH = os.path.join(BASE_DIR, "evaluation_summary.json")
 
 
@@ -53,6 +50,8 @@ def _box_iou(box_a: List[float], box_b: List[float]) -> float:
 
 
 def evaluate_vqa() -> Dict[str, Any]:
+    from backend.models.vqa.model import RemoteSensingVQAModel
+
     vqa_file = os.path.join(DATASETS_DIR, "vqa_holdout.jsonl")
     if not os.path.exists(vqa_file):
         return {"status": "skipped", "reason": f"{vqa_file} missing"}
@@ -123,6 +122,8 @@ def evaluate_vqa() -> Dict[str, Any]:
 
 
 def evaluate_grounding() -> Dict[str, Any]:
+    from backend.models.grounding.model import RemoteSensingGroundingModel
+
     file_path = os.path.join(DATASETS_DIR, "grounding_holdout.jsonl")
     if not os.path.exists(file_path):
         return {"status": "skipped", "reason": "missing file"}
@@ -172,6 +173,8 @@ def evaluate_grounding() -> Dict[str, Any]:
 
 
 def evaluate_change_detection() -> Dict[str, Any]:
+    from backend.models.change_detection.model import ChangeDetectionModel
+
     file_path = os.path.join(DATASETS_DIR, "change_holdout.jsonl")
     if not os.path.exists(file_path):
         return {"status": "skipped", "reason": "missing file"}
@@ -186,15 +189,21 @@ def evaluate_change_detection() -> Dict[str, Any]:
     recalls = []
 
     for row in rows:
-        res = model.run({"image_path_a": row["t1_path"], "image_path_b": row["t2_path"]})
-        gt_mask = np.asarray(Image.open(row["gt_mask_path"]).convert("L")) > 127
-
-        img_a = cv2.imread(row["t1_path"], cv2.IMREAD_GRAYSCALE)
-        img_b = cv2.imread(row["t2_path"], cv2.IMREAD_GRAYSCALE)
-        diff = cv2.absdiff(img_a, img_b)
-        diff_blurred = cv2.GaussianBlur(diff, (5, 5), 0)
-        _, pred_mask = cv2.threshold(diff_blurred, 30, 255, cv2.THRESH_BINARY)
+        image_path_a = os.path.join(PROJECT_DIR, row["t1_path"])
+        image_path_b = os.path.join(PROJECT_DIR, row["t2_path"])
+        gt_mask_path = os.path.join(PROJECT_DIR, row["gt_mask_path"])
+        res = model.run({"image_path_a": image_path_a, "image_path_b": image_path_b})
+        encoded_mask = base64.b64decode(res["change_mask_b64"])
+        pred_mask = cv2.imdecode(np.frombuffer(encoded_mask, dtype=np.uint8), cv2.IMREAD_GRAYSCALE)
+        if pred_mask is None:
+            raise ValueError(f"Could not decode predicted change mask for {row.get('id', 'unknown sample')}.")
         pred_bool = pred_mask > 127
+        gt_mask = np.asarray(Image.open(gt_mask_path).convert("L")) > 127
+        if pred_bool.shape != gt_mask.shape:
+            raise ValueError(
+                f"Predicted and reference masks must have equal dimensions for "
+                f"{row.get('id', 'unknown sample')}: {pred_bool.shape} != {gt_mask.shape}."
+            )
 
         iou_val = binary_iou(pred_bool, gt_mask)
         f1_val = binary_f1(pred_bool, gt_mask)
@@ -210,17 +219,20 @@ def evaluate_change_detection() -> Dict[str, Any]:
 
     return {
         "task": "Bi-temporal Change Detection",
-        "dataset": "Held-Out Multi-Terrain Temporal Pairs",
+        "dataset": "Repository-provided three-pair reference-mask set",
         "scenarios_evaluated": len(rows),
         "mean_pixel_iou": round(float(np.mean(ious)), 4),
         "mean_f1_score": round(float(np.mean(f1s)), 4),
         "mean_precision": round(float(np.mean(precisions)), 4),
         "mean_recall": round(float(np.mean(recalls)), 4),
-        "status": "passed"
+        "reference_provenance": "Manifest-provided masks; independent annotation provenance not verified",
+        "status": "computed"
     }
 
 
 def evaluate_optical_sar() -> Dict[str, Any]:
+    from backend.models.optical_sar.model import OpticalSARFusionModel
+
     file_path = os.path.join(DATASETS_DIR, "optical_sar_holdout.jsonl")
     if not os.path.exists(file_path):
         return {"status": "skipped", "reason": "missing file"}

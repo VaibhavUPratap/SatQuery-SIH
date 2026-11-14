@@ -108,6 +108,10 @@ class ChangeDetectionModel(BaseSpecialistModel):
         # Encode change map as base64
         _, buffer = cv2.imencode('.png', overlay)
         change_map_b64 = base64.b64encode(buffer).decode('utf-8')
+        mask_encoded, mask_buffer = cv2.imencode(".png", change_mask)
+        if not mask_encoded:
+            raise RuntimeError("Could not encode the binary change mask.")
+        change_mask_b64 = base64.b64encode(mask_buffer).decode("utf-8")
 
         # Generate textual summary
         change_elements = []
@@ -148,6 +152,7 @@ class ChangeDetectionModel(BaseSpecialistModel):
             "changed_pixels": changed_pixels,
             "total_pixels": total_pixels,
             "change_map_b64": change_map_b64,
+            "change_mask_b64": change_mask_b64,
             "confidence": round(confidence, 4),
             "evidence": {
                 "spectral_change": {

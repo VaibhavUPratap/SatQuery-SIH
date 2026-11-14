@@ -115,7 +115,11 @@ $$\text{LOGIN} \longrightarrow \text{DATA UPLOAD} \longrightarrow \text{INPUT VA
 | :--- | :--- | :--- | :--- | :--- |
 | **RSVQA BLIP + PEFT LoRA** | RSVQA-LR Held-Out Test Split | Strict Test Accuracy | **40.0% – 50.0%** (*66.7% Binary Presence*) | Evaluated on held-out test split |
 | **BigEarthNet ConvMixer** | BigEarthNet v2.0 (reBEN) | Mean F1-Score | **0.6120** | 19 CORINE multi-label classes |
-| **Bi-Temporal Change Detection** | Sentinel-2 Change Benchmark | F1-Score / Pixel IoU | **0.6628 F1 / 0.6589 IoU** | Threshold 30 DN + Morphological |
+| **Bi-Temporal Change Detection** | Three-pair manifest-provided mask set | F1-Score / Pixel IoU | **0.6627 F1 / 0.6589 IoU** | Scores emitted model masks; reference provenance is unverified |
+
+Change-detection metrics are prototype evidence on the three pairs and masks
+provided in the repository. Their independent annotation provenance has not
+been verified; these results are not an independent scientific validation.
 | **Optical-SAR Cross-Fusion** | Co-Registered S1/S2 Pairs | Alignment Consistency | **0.9200 Score** | Water / Built-Up mutual agreement |
 
 ---

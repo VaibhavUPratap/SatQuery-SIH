@@ -26,13 +26,14 @@
     },
     "change_detection": {
       "task": "Bi-temporal Change Detection",
-      "dataset": "Held-Out Multi-Terrain Temporal Pairs",
+      "dataset": "Repository-provided three-pair reference-mask set",
       "scenarios_evaluated": 3,
       "mean_pixel_iou": 0.6589,
-      "mean_f1_score": 0.6628,
-      "mean_precision": 0.9923,
-      "mean_recall": 0.6666,
-      "status": "passed"
+      "mean_f1_score": 0.6627,
+      "mean_precision": 0.9924,
+      "mean_recall": 0.6665,
+      "reference_provenance": "Manifest-provided masks; independent annotation provenance not verified",
+      "status": "computed"
     },
     "optical_sar": {
       "task": "Cross-Modal Optical + SAR Analysis",
