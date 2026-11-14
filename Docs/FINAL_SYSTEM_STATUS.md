@@ -1,9 +1,9 @@
 # SatQuery AI — Final System Status & SIH Demo Dossier
 
 ## SYSTEM STATUS
-**STATUS: READY FOR SIH DEMO**
+**STATUS: SIH DEMO READY; NISAR/TERRAPULSE EXPANSION IN PROGRESS**
 
-*The SatQuery AI Remote Sensing Intelligence Platform has undergone complete regression testing, multi-page UI overhaul, backend pipeline hardening, security isolation, and benchmark evaluation freeze. All flow contracts, specialist models, input validators, PDF report generators, and security controls are locked and verified for Smart India Hackathon (SIH) demonstration.*
+*The SatQuery AI prototype has undergone regression testing, dashboard integration, backend pipeline hardening, security isolation, and benchmark evaluation. The project is now being extended into the TerraPulse AI NISAR-focused platform. Existing SatQuery capabilities are suitable for SIH demonstration; the NISAR-focused challenge claim remains conditional on successful real-product acquisition and end-to-end validation.*
 
 ---
 
@@ -170,3 +170,33 @@ $$\text{LOGIN} \longrightarrow \text{DATA UPLOAD} \longrightarrow \text{INPUT VA
 * **Server Stability**: **PASSED** — Thread pool and queue limiters prevent server memory exhaustion.
 
 **SATQUERY AI IS LOCKED AND READY FOR SIH DEMONSTRATION.**
+
+---
+
+## 9. TerraPulse AI / NISAR Expansion Status
+
+### Implemented foundation
+
+- NISAR HDF5 hierarchy and metadata inspection.
+- Polarization discovery and calibrated L-band backscatter extraction.
+- Product and temporal-pair validation.
+- NASA CMR/ASF-style search integration points.
+- NISAR preview generation.
+- Speckle-filtered radar log-ratio change detection.
+- Flood inundation and water-dynamics analysis using HH/HV evidence.
+- Dedicated NISAR API routes for search, validation, preview, and controlled demo synthesis.
+- Initial TerraPulse frontend and agent integration points.
+
+### Not yet proven
+
+The repository does not yet establish a complete, verified real-NISAR case
+study. Curated catalog entries, synthetic HDF5 products, and offline fallback
+paths are useful for development and testing but are not evidence of real
+mission observations.
+
+### Required next milestone
+
+Acquire two real NISAR observations for one study area, verify their official
+metadata, process them through the NISAR change/flood pipeline, display the
+results in the frontend, and export a report that preserves the source
+identifiers, dates, processing settings, uncertainty, and limitations.

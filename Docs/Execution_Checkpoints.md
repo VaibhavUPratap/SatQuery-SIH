@@ -1,6 +1,6 @@
 # SatQuery AI — Delivery Schedule and Checkpoints
 
-Last updated: 24 August 2026
+Last updated: 14 November 2026
 
 ## Delivery context
 
@@ -40,4 +40,14 @@ and never substituted with fabricated benchmark claims.
 - C4 — partially complete: metric runner executes against the available 10-row manifest, but a representative registry benchmark and adapted-versus-generic comparison remain required.
 - C5 — implemented: React/Leaflet dashboard now includes upload, paired-image, result, trace, report, and evidence-view workflows; production build requires Node/npm dependencies, unavailable in the current environment.
 - C6 — partially complete: selected training data, adapter checkpoint, GPU run, and API/UI integration are present; a larger real RSVQA/BigEarthNet rehearsal remains.
+- C7 — in progress: TerraPulse/NISAR foundation added, including HDF5 reading, metadata and temporal-pair validation, CMR/ASF-style search, radar change detection, flood analysis, preview generation, and initial frontend/API integration.
+- C8 — pending: acquire and verify real NISAR products for one study area, run a two-date end-to-end case study, connect the workflow to the main agent and report UI, and evaluate against independent reference data.
+
+## Current overall interpretation
+
+The SatQuery AI/SIH prototype is ready for demonstration. The TerraPulse AI
+NISAR expansion has a working foundation but is not complete until real NISAR
+observations are acquired, processed, visualized, and independently evaluated.
+Synthetic products and curated catalog records remain development fixtures and
+must be labelled as such.
 

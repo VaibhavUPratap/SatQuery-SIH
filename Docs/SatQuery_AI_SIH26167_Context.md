@@ -1447,6 +1447,70 @@ Result
 
 ---
 
+# 33. Implementation Status — November 2026
+
+## 33.1 Completed SatQuery AI / SIH prototype
+
+The original SIH26167 prototype is implemented as a working demonstration
+platform. Completed capabilities include:
+
+- FastAPI backend and React/Vite dashboard.
+- Upload validation, raster checks, metadata checks, size limits, and temporary-file cleanup.
+- Single-image VQA with a real BLIP + PEFT LoRA remote-sensing adapter and deterministic fallback.
+- Scene captioning and text-guided grounding.
+- Bi-temporal change detection and change-focused VQA.
+- Optical + SAR fusion for water and built-up evidence.
+- BigEarthNet land-cover classification integration.
+- Deterministic task classification plus persisted LangGraph orchestration.
+- Evidence overlays, confidence values, execution traces, and PDF export.
+- Session/job isolation, path sanitization, and bounded concurrency controls.
+- Automated evaluation scripts and regression tests.
+
+The documented benchmark baseline is 60% exact accuracy on the repaired
+10-image RSVQA holdout, 0.6589 change-detection IoU, 0.6628 change F1,
+0.3767 grounding mIoU, and 0.9200 optical-SAR alignment. These are prototype
+measurements, not production guarantees.
+
+## 33.2 TerraPulse AI / NISAR expansion in progress
+
+The project is now being extended toward the NASA Space Apps Challenge
+“Dancing with the SARs” direction under the TerraPulse AI concept. Initial
+NISAR-specific implementation exists for:
+
+- HDF5 NISAR metadata inspection and official hierarchy checks.
+- Polarization discovery and calibrated backscatter extraction.
+- Product validation, quality checks, and temporal-pair validation.
+- NASA CMR/ASF-style search integration points.
+- NISAR preview generation.
+- L-band dB backscatter change detection with speckle filtering.
+- Flood inundation and water-dynamics analysis using HH/HV evidence.
+- Dedicated NISAR API routes for search, validation, preview, and controlled demo synthesis.
+- Initial TerraPulse-oriented frontend views and agent/tool integration points.
+
+These modules establish the processing foundation, but synthetic products,
+curated catalog records, or offline fallbacks must not be presented as proof of
+real NISAR observations.
+
+## 33.3 Remaining NISAR completion criteria
+
+Before claiming full compliance with the NISAR-focused challenge direction, the
+team must:
+
+1. Acquire real NISAR products for a selected study area.
+2. Verify product identifiers, acquisition dates, coverage, polarization, CRS,
+   and product maturity from authoritative metadata.
+3. Process at least two real observations through the temporal pipeline.
+4. Connect search, selection, validation, analysis, visualization, explanation,
+   and reporting into one user workflow.
+5. Add real-product fixtures and end-to-end NISAR tests.
+6. Evaluate against independent reference data and report uncertainty.
+7. Clearly label real, synthetic, curated, and fallback outputs.
+
+Until these criteria are met, the correct project status is: **SatQuery SIH
+prototype ready for demonstration; TerraPulse/NISAR integration underway**.
+
+---
+
 ## Slide 4 — Feasibility & Viability
 
 Show:
