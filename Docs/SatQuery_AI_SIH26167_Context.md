@@ -1467,9 +1467,11 @@ platform. Completed capabilities include:
 - Automated evaluation scripts and regression tests.
 
 The documented benchmark baseline is 60% exact accuracy on the repaired
-10-image RSVQA holdout, 0.6589 change-detection IoU, 0.6628 change F1,
-0.3767 grounding mIoU, and 0.9200 optical-SAR alignment. These are prototype
-measurements, not production guarantees.
+10-image RSVQA holdout, 0.6589 change-detection IoU / 0.6627 F1 on three
+repository-provided pairs, 0.3767 grounding mIoU, and 0.9200 optical-SAR
+alignment. Change metrics now use the emitted model masks; reference-mask
+provenance remains unverified, so they are not independent scientific
+validation. These are prototype measurements, not production guarantees.
 
 ## 33.2 TerraPulse AI / NISAR expansion in progress
 
