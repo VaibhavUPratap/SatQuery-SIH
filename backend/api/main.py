@@ -6,18 +6,19 @@ from backend.api.endpoints import vqa_router, caption_router, grounding_router, 
 from backend.api.endpoints.auth import router as auth_router
 from backend.api.auth import current_user
 from backend.api.endpoints.jobs import router as jobs_router
+from backend.api.endpoints.nisar import router as nisar_router
 
 # Configure Logger
 logging.basicConfig(
     level=logging.INFO if not settings.DEBUG else logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
-logger = logging.getLogger("satquery.api")
+logger = logging.getLogger("terrapulse.api")
 
 app = FastAPI(
-    title=settings.API_TITLE,
+    title="TerraPulse AI API",
     version=settings.API_VERSION,
-    description="Backend API services for SatQuery AI - Interactive Remote Sensing Vision-Language Assistant."
+    description="Agentic Intelligence for NISAR-Based Earth Surface Change Detection — NASA Space Apps Challenge 2026."
 )
 
 # CORS Setup
@@ -31,6 +32,7 @@ app.add_middleware(
 
 # Include Routers
 protected = [Depends(current_user)]
+app.include_router(nisar_router, prefix="/api/v1", tags=["NISAR Earth Observation"])
 app.include_router(vqa_router, prefix="/api/v1", tags=["Specialist Tools"], dependencies=protected)
 app.include_router(caption_router, prefix="/api/v1", tags=["Specialist Tools"], dependencies=protected)
 app.include_router(grounding_router, prefix="/api/v1", tags=["Specialist Tools"], dependencies=protected)

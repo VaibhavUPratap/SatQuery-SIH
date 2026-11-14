@@ -25,9 +25,9 @@ async def execute_optical_sar(
 
     paths = []
     try:
-        optical_path = await persist_upload(optical_file, "optical")
+        optical_path, _ = await persist_upload(optical_file, "optical")
         paths.append(optical_path)
-        sar_path = await persist_upload(sar_file, "sar")
+        sar_path, _ = await persist_upload(sar_file, "sar")
         paths.append(sar_path)
         optical_ok, optical_error, optical_metadata = InputValidator.validate_image(optical_path)
         sar_ok, sar_error, sar_metadata = InputValidator.validate_image(sar_path)

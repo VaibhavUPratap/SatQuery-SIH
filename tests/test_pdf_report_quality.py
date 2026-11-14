@@ -337,6 +337,70 @@ def test_pdf_quality_grounding():
         f.write(raw_pdf)
 
 
+def test_pdf_quality_nisar_flood_inundation():
+    """Test 6: NISAR Flood Inundation & Surface Water 6-page report."""
+    payload = {
+        "status": "success",
+        "query": "Track flood inundation dynamics between these two NISAR observations",
+        "route": {
+            "task": "nisar_flood",
+            "reason": "Two inputs plus flood inundation / surface water intent.",
+        },
+        "answer": "NISAR L-band flood inundation analysis detected 18.42 km² of newly flooded open terrain.",
+        "confidence": 0.94,
+        "new_flood_area_km2": 18.42,
+        "new_flood_area_hectares": 1842.0,
+        "permanent_water_area_km2": 4.15,
+        "inundated_vegetation_area_km2": 3.80,
+        "total_water_area_t2_km2": 26.37,
+        "water_expansion_ratio": 4.43,
+        "meta_1": {
+            "file_name": "NISAR_L2_GCOV_T1_Dry.h5",
+            "format": "HDF5",
+            "sensor": "NASA-ISRO NISAR L-SAR",
+            "modality": "SAR",
+            "polarization": "HH+HV Dual-Pol",
+            "acquisition_date": "2026-06-01",
+            "width": 512,
+            "height": 512,
+        },
+        "meta_2": {
+            "file_name": "NISAR_L2_GCOV_T2_Flood.h5",
+            "format": "HDF5",
+            "sensor": "NASA-ISRO NISAR L-SAR",
+            "modality": "SAR",
+            "polarization": "HH+HV Dual-Pol",
+            "acquisition_date": "2026-07-25",
+            "width": 512,
+            "height": 512,
+        },
+        "evidence": {
+            "water_threshold_hh_db": -17.5,
+            "speckle_filter": "Enhanced Lee (5x5)",
+            "pixel_spacing_m": [20.0, 20.0],
+        },
+        "execution_trace": {
+            "steps": [
+                {"node": "validate_inputs", "status": "passed", "execution_time_seconds": 0.005},
+                {"node": "classify_intent", "status": "passed", "execution_time_seconds": 0.002, "selected_task": "nisar_flood"},
+                {"node": "execute_nisar_flood", "status": "passed", "execution_time_seconds": 0.045, "model": "NISARFloodInundationModel"},
+                {"node": "fuse_evidence", "status": "passed", "execution_time_seconds": 0.008},
+            ]
+        },
+        "thread_id": "session_test_nisar_flood",
+    }
+
+    b64_pdf = generate_pdf_report("TerraPulse AI Evidence Report - NISAR Flood", payload)
+    raw_pdf = base64.b64decode(b64_pdf)
+    assert raw_pdf.startswith(b"%PDF")
+    pages = _count_pdf_pages(raw_pdf)
+    assert pages == 6, f"Expected 6 pages for NISAR Flood report, got {pages}"
+
+    out_file = os.path.join(OUTPUT_DIR, "nisar_flood_report.pdf")
+    with open(out_file, "wb") as f:
+        f.write(raw_pdf)
+
+
 if __name__ == "__main__":
     print("Executing PDF Quality & Regression Test Suite...")
     test_pdf_quality_vqa()

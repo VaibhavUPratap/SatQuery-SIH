@@ -26,7 +26,7 @@ async def execute_grounding(
 
     file_path = None
     try:
-        file_path = await persist_upload(file, "grounding")
+        file_path, _ = await persist_upload(file, "grounding")
     except HTTPException:
         raise
     except Exception as e:

@@ -54,6 +54,7 @@ def _build_context(title: str, result: Dict[str, Any]) -> Dict[str, Any]:
     # Extract metadata 1
     meta_1 = (
         result.get("meta_1")
+        or evidence.get("t1_metadata")
         or evidence.get("image_metadata")
         or evidence.get("image_t1_metadata")
         or evidence.get("optical_metadata")
@@ -63,6 +64,7 @@ def _build_context(title: str, result: Dict[str, Any]) -> Dict[str, Any]:
     # Extract metadata 2
     meta_2 = (
         result.get("meta_2")
+        or evidence.get("t2_metadata")
         or evidence.get("image_t2_metadata")
         or evidence.get("sar_metadata")
         or {}
@@ -91,6 +93,7 @@ def _build_context(title: str, result: Dict[str, Any]) -> Dict[str, Any]:
 
     answer = (
         result.get("answer")
+        or result.get("flood_summary")
         or result.get("caption")
         or result.get("change_summary")
         or result.get("summary")
@@ -98,15 +101,15 @@ def _build_context(title: str, result: Dict[str, Any]) -> Dict[str, Any]:
     )
 
     overlay_b64 = next(
-        (result[k] for k in ("overlay_b64", "annotated_image_b64", "change_map_b64") if result.get(k)),
+        (result[k] for k in ("overlay_b64", "flood_map_b64", "annotated_image_b64", "change_map_b64") if result.get(k)),
         None,
     )
 
-    analysis_id = f"SQ-{uuid.uuid4().hex[:10].upper()}"
+    analysis_id = f"TP-{uuid.uuid4().hex[:10].upper()}"
     generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
     return {
-        "title": title or "SatQuery AI Remote Sensing Analysis Report",
+        "title": title or "TerraPulse AI — NISAR Earth Surface Change Report",
         "analysis_id": analysis_id,
         "generated_at": generated_at,
         "query": result.get("query") or "Remote sensing scene analysis",
@@ -125,6 +128,17 @@ def _build_context(title: str, result: Dict[str, Any]) -> Dict[str, Any]:
         "scores": (result.get("scores") or [])[:12],
         "change_ratio": result.get("change_ratio"),
         "change_summary": result.get("change_summary"),
+        "new_flood_area_km2": result.get("new_flood_area_km2"),
+        "new_flood_area_hectares": result.get("new_flood_area_hectares"),
+        "permanent_water_area_km2": result.get("permanent_water_area_km2"),
+        "inundated_vegetation_area_km2": result.get("inundated_vegetation_area_km2"),
+        "total_water_area_t2_km2": result.get("total_water_area_t2_km2"),
+        "water_expansion_ratio": result.get("water_expansion_ratio"),
+        "changed_area_km2": result.get("changed_area_km2"),
+        "changed_area_hectares": result.get("changed_area_hectares"),
+        "decreased_area_km2": result.get("decreased_area_km2"),
+        "increased_area_km2": result.get("increased_area_km2"),
+        "mean_delta_db": result.get("mean_delta_db"),
         "class_coverage": result.get("class_coverage") or {},
         "pair_meta": result.get("pair_metadata") or {},
         "evidence": evidence,
@@ -226,7 +240,15 @@ class SatQueryPDFReport(FPDF):
         # Determine Input Modality / Sensor
         sensor1 = ctx["meta_1"].get("sensor") or "Earth Observation Sensor"
         modality1 = ctx["meta_1"].get("modality") or "Optical"
-        if ctx["task_name"] == "optical_sar":
+        if ctx["task_name"] == "nisar_flood":
+            input_type = "NISAR Bi-Temporal L-band Observation"
+            sensor_desc = "NASA-ISRO NISAR (L-SAR)"
+            modality1 = "L-band Polarimetric SAR (HH+HV)"
+        elif ctx["task_name"] == "nisar_change":
+            input_type = "NISAR Surface Change Radar Pair"
+            sensor_desc = "NASA-ISRO NISAR (L-SAR)"
+            modality1 = "Calibrated Backscatter Log-Ratio"
+        elif ctx["task_name"] == "optical_sar":
             input_type = "Optical + SAR Multi-Modal Pair"
             sensor_desc = "Sentinel-2 MSI + Sentinel-1 SAR"
         elif ctx["task_name"] == "change":
@@ -337,7 +359,7 @@ class SatQueryPDFReport(FPDF):
                 row_h=5.4,
             )
 
-        elif ctx["task_name"] == "change":
+        elif ctx["task_name"] in {"change", "nisar_change", "nisar_flood"}:
             # Change Detection T1 + T2 side-by-side
             section_title(self, "Bi-Temporal Satellite Scene Pair", top_gap=0)
             insert_dual_images_side_by_side(
@@ -395,6 +417,8 @@ class SatQueryPDFReport(FPDF):
             "change": ("Bi-temporal Change Detection", "ChangeDetectionModel + ChangeVQAModel"),
             "optical_sar": ("Optical + SAR Cross-Modal Fusion", "OpticalSARFusionModel (Spectral-Backscatter Matrix)"),
             "land_cover": ("BigEarthNet v2.0 Land-Cover Classification", "BigEarthNetV2ConvMixer (ConvMixer-768/32)"),
+            "nisar_change": ("NISAR Radar Surface Change Detection", "NISARChangeDetectionModel (Decibel Log-Ratio + Lee Filter)"),
+            "nisar_flood": ("NISAR Flood Inundation & Surface Water Tracking", "NISARFloodInundationModel (Specular Drop + Double-Bounce)"),
         }
         task_label, specialist_model = TASK_MODELS.get(
             ctx["task_name"], (ctx["task_name"].replace("_", " ").title(), "Specialist Pipeline")
@@ -430,6 +454,37 @@ class SatQueryPDFReport(FPDF):
                 status = "CONFIRMED" if sc >= 0.50 else "SUB-THRESHOLD"
                 pred_rows.append([str(i + 1), str(p.get("label", "-")), f"{sc:.4f}", status])
             styled_data_table(self, headers, pred_rows, [10.0, USABLE_W * 0.46, USABLE_W * 0.24, USABLE_W * 0.22], row_h=5.0)
+
+        elif ctx["task_name"] == "nisar_flood":
+            section_title(self, "NISAR Radar Flood Inundation Metrics", top_gap=1.5)
+            new_flood_km2 = ctx.get("new_flood_area_km2") or 0.0
+            new_flood_ha = ctx.get("new_flood_area_hectares") or (new_flood_km2 * 100.0)
+            perm_km2 = ctx.get("permanent_water_area_km2") or 0.0
+            inund_veg_km2 = ctx.get("inundated_vegetation_area_km2") or 0.0
+            exp_ratio = ctx.get("water_expansion_ratio") or 0.0
+            kv_table(self, [
+                ("Newly Submerged Flood Inundation", f"{new_flood_km2:.2f} km² ({new_flood_ha:.1f} hectares)"),
+                ("Inundated Vegetation (Double-Bounce)", f"{inund_veg_km2:.2f} km²"),
+                ("Baseline Permanent Water Extent", f"{perm_km2:.2f} km²"),
+                ("Total Surface Water Extent (T2)", f"{ctx.get('total_water_area_t2_km2', new_flood_km2 + perm_km2):.2f} km²"),
+                ("Surface Water Expansion Ratio", f"+{exp_ratio * 100:.1f}% relative to baseline"),
+                ("Physics Calibration Basis", "Specular surface scattering drop (HH < -17.5 dB) + Refined Lee speckle filter"),
+            ], row_h=5.4)
+
+        elif ctx["task_name"] == "nisar_change":
+            section_title(self, "NISAR Radar Backscatter Change Metrics", top_gap=1.5)
+            chg_km2 = ctx.get("changed_area_km2") or 0.0
+            chg_ha = ctx.get("changed_area_hectares") or (chg_km2 * 100.0)
+            dec_km2 = ctx.get("decreased_area_km2") or 0.0
+            inc_km2 = ctx.get("increased_area_km2") or 0.0
+            mean_delta = ctx.get("mean_delta_db") or 0.0
+            kv_table(self, [
+                ("Total Significant Changed Area", f"{chg_km2:.2f} km² ({chg_ha:.1f} hectares)"),
+                ("Negative Anomaly (Inundation/Smooth)", f"{dec_km2:.2f} km² (Backscatter drop < -3.0 dB)"),
+                ("Positive Anomaly (Roughness/Erect)", f"{inc_km2:.2f} km² (Backscatter surge > +3.0 dB)"),
+                ("Mean Backscatter Delta", f"{mean_delta:+.2f} dB across observation window"),
+                ("Scientific Metric", "Log-ratio backscatter operator Delta_sigma0_dB = T2(dB) - T1(dB)"),
+            ], row_h=5.4)
 
         elif ctx["task_name"] == "change":
             section_title(self, "Bi-Temporal Change Statistics", top_gap=1.5)

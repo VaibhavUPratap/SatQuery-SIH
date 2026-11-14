@@ -23,7 +23,7 @@ class InputValidator:
     channels/bands, and geospatial metadata with sensor/polarization detection.
     """
     
-    SUPPORTED_FORMATS = {".tif", ".tiff", ".png", ".jpg", ".jpeg"}
+    SUPPORTED_FORMATS = {".tif", ".tiff", ".png", ".jpg", ".jpeg", ".h5", ".hdf5"}
 
     @classmethod
     def detect_sensor_and_modality(cls, file_name: str, bands: int, descriptions: tuple = ()) -> Tuple[str, str, str | None]:
@@ -32,21 +32,44 @@ class InputValidator:
         desc_joined = " ".join((d or "").upper() for d in descriptions)
         
         polarization = None
-        if "VV" in desc_joined and "VH" in desc_joined:
+        if "HH" in desc_joined and "HV" in desc_joined and "VV" in desc_joined and "VH" in desc_joined:
+            polarization = "Full Quad-Pol (HH+HV+VV+VH)"
+        elif "HH" in desc_joined and "HV" in desc_joined:
+            polarization = "HH+HV Dual-Pol (NISAR Standard)"
+        elif "VV" in desc_joined and "VH" in desc_joined:
             polarization = "VV+VH Dual-Pol"
+        elif "HH" in desc_joined:
+            polarization = "HH (Co-Pol)"
+        elif "HV" in desc_joined:
+            polarization = "HV (Cross-Pol)"
         elif "VV" in desc_joined:
             polarization = "VV"
         elif "VH" in desc_joined:
             polarization = "VH"
-        elif any(k in name_lower for k in ("_sar", "-sar", "sar_", "sar.", "sentinel1", "sentinel-1", "s1_")):
+        elif any(k in name_lower for k in ("_hh", "-hh", "hh_", "hh.")):
+            polarization = "HH (Co-Pol)"
+        elif any(k in name_lower for k in ("_hv", "-hv", "hv_", "hv.")):
+            polarization = "HV (Cross-Pol)"
+        elif any(k in name_lower for k in ("_vv", "-vv", "vv_", "vv.")):
+            polarization = "VV"
+        elif any(k in name_lower for k in ("_vh", "-vh", "vh_", "vh.")):
+            polarization = "VH"
+        elif any(k in name_lower for k in ("_sar", "-sar", "sar_", "sar.", "sentinel1", "sentinel-1", "s1_", "nisar")):
             polarization = "Intensity / Backscatter"
 
+        is_nisar = any(k in name_lower for k in ("nisar", "l-sar", "lsar", "gcov", "gslc", "gunw"))
         is_sar = (
-            any(k in name_lower for k in ("sentinel1", "sentinel-1", "sentinel_1", "s1", "sar", "risat"))
+            is_nisar
+            or any(k in name_lower for k in ("sentinel1", "sentinel-1", "sentinel_1", "s1", "sar", "risat"))
             or polarization is not None
         )
         if is_sar:
-            sensor = "Sentinel-1 SAR" if any(k in name_lower for k in ("sentinel1", "sentinel-1", "s1", "sentinel")) else "SAR Sensor"
+            if is_nisar:
+                sensor = "NASA-ISRO NISAR L-band SAR"
+            elif any(k in name_lower for k in ("sentinel1", "sentinel-1", "s1", "sentinel")):
+                sensor = "Sentinel-1 SAR"
+            else:
+                sensor = "SAR Sensor"
             modality = "SAR"
             return sensor, modality, polarization or "Single-Pol (Backscatter)"
 
@@ -113,6 +136,16 @@ class InputValidator:
             "geospatial": False,
             "acquisition_date": cls.extract_acquisition_date(file_name),
         }
+
+        # Check HDF5 format (NISAR radar products)
+        if ext in {".h5", ".hdf5"}:
+            try:
+                from backend.validation.nisar_validator import NISARValidator
+                ok, err, nisar_meta = NISARValidator.validate_product(file_path)
+                metadata.update(nisar_meta)
+                return ok, err, metadata
+            except Exception as e:
+                return False, f"Failed to validate HDF5 product: {str(e)}", metadata
 
         # Try reading geospatial metadata with rasterio if format is TIFF/TIF
         if HAS_RASTERIO and ext in {".tif", ".tiff"}:

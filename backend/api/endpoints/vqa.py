@@ -27,7 +27,7 @@ async def execute_vqa(
     # Save uploaded file temporarily with a unique name
     file_path = None
     try:
-        file_path = await persist_upload(file, "vqa")
+        file_path, _ = await persist_upload(file, "vqa")
     except HTTPException:
         raise
     except Exception as e:

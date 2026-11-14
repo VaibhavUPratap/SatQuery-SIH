@@ -17,6 +17,9 @@ ALLOWED_MIME_TYPES = {
     "image/jpeg",
     "image/jpg",
     "application/octet-stream",
+    "application/x-hdf5",
+    "application/x-hdf",
+    "application/hdf5",
 }
 
 
@@ -35,7 +38,7 @@ async def persist_upload(upload: UploadFile, label: str, job_id: str | None = No
     if extension not in InputValidator.SUPPORTED_FORMATS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported format '{extension}'. Allowed extensions: {', '.join(InputValidator.SUPPORTED_FORMATS)}"
+            detail=f"Unsupported format: Unsupported upload format '{extension}'. Allowed extensions: {', '.join(InputValidator.SUPPORTED_FORMATS)}"
         )
     
     # 2. MIME Type Validation
@@ -51,8 +54,10 @@ async def persist_upload(upload: UploadFile, label: str, job_id: str | None = No
     job_dir = os.path.join(settings.UPLOAD_DIR, f"job_{dir_id}")
     os.makedirs(job_dir, exist_ok=True)
     
-    # 4. Generate Unpredictable Filename
-    file_path = os.path.join(job_dir, f"{uuid.uuid4()}_{label}{extension}")
+    # 4. Generate Unpredictable Filename preserving safe original name
+    safe_base = "".join(c for c in os.path.splitext(os.path.basename(filename))[0] if c.isalnum() or c in ("-", "_")).strip()[:50]
+    filename_part = f"_{safe_base}" if safe_base else ""
+    file_path = os.path.join(job_dir, f"{uuid.uuid4()}_{label}{filename_part}{extension}")
     
     total_bytes = 0
     try:
@@ -72,7 +77,7 @@ async def persist_upload(upload: UploadFile, label: str, job_id: str | None = No
         if not is_valid:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Uploaded file failed raster validation: {err_msg}"
+                detail=f"Uploaded file failed raster validation: validation failed: {err_msg}"
             )
 
         return file_path, job_dir

@@ -18,7 +18,7 @@ async def execute_caption(
     """
     file_path = None
     try:
-        file_path = await persist_upload(file, "caption")
+        file_path, _ = await persist_upload(file, "caption")
     except HTTPException:
         raise
     except Exception as e:

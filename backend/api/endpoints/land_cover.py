@@ -19,7 +19,7 @@ async def classify_land_cover(file: UploadFile = File(..., description="14-band 
     """Classify a reBEN-compatible Sentinel-1/Sentinel-2 image chip."""
     path = None
     try:
-        path = await persist_upload(file, "land_cover")
+        path, _ = await persist_upload(file, "land_cover")
         valid, error, metadata = InputValidator.validate_image(path)
         if not valid:
             raise HTTPException(status_code=400, detail=f"Image validation failed: {error}")

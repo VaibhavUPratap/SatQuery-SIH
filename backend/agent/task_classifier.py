@@ -12,17 +12,23 @@ class TaskClassifier:
     """Deterministic, auditable router; replaceable with an LLM classifier later."""
 
     def classify(self, query: str, image_count: int, requested_task: str = "auto") -> RouteDecision:
-        allowed = {"vqa", "caption", "grounding", "change", "optical_sar", "land_cover"}
+        allowed = {"vqa", "caption", "grounding", "change", "optical_sar", "land_cover", "nisar_change", "nisar_flood"}
         if requested_task != "auto":
             if requested_task not in allowed:
                 raise ValueError(f"Unsupported analysis_type '{requested_task}'.")
-            if requested_task in {"change", "optical_sar"} and image_count != 2:
+            if requested_task in {"change", "optical_sar", "nisar_change", "nisar_flood"} and image_count != 2:
                 raise ValueError(f"{requested_task} analysis requires exactly two images.")
             if requested_task in {"vqa", "caption", "grounding", "land_cover"} and image_count != 1:
                 raise ValueError(f"{requested_task} analysis accepts exactly one image.")
             return RouteDecision(requested_task, "Explicit analysis_type supplied by caller.")
         text = query.lower()
         if image_count == 2:
+            # 1. Prioritize NISAR Flood Inundation & Surface Water
+            if any(word in text for word in ("flood", "inundat", "water body", "surface water", "submerged", "overflow", "wetland")):
+                return RouteDecision("nisar_flood", "Two inputs plus flood inundation / surface water intent.")
+            # 2. Prioritize NISAR Radar Surface Change
+            if any(word in text for word in ("nisar", "radar change", "backscatter change", "log-ratio", "surface deformation", "surface change")):
+                return RouteDecision("nisar_change", "Two inputs plus NISAR radar surface change intent.")
             if any(word in text for word in ("sar", "radar", "backscatter", "optical-sar", "optical sar")):
                 return RouteDecision("optical_sar", "Two inputs plus optical/SAR terminology.")
             return RouteDecision("change", "Two inputs default to bi-temporal analysis.")

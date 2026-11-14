@@ -74,13 +74,23 @@ def validate_inputs_node(state: AgentState) -> Dict[str, Any]:
                     "error_message": error,
                     "execution_trace": trace + [{"node": "validate_inputs", "status": "failed", "error": error}],
                 }
-        is_optical_sar = decision.task == "optical_sar"
-        pair_validator = (
-            ImageRegistration.validate_optical_sar_pair
-            if is_optical_sar
-            else ImageRegistration.validate_pair
-        )
-        valid_pair, error_pair, pair_metadata = pair_validator(file_1, file_2)
+        if decision.task in {"nisar_change", "nisar_flood"}:
+            from backend.preprocessing.nisar_reader import NISARProductReader
+            from backend.validation.nisar_validator import NISARValidator
+            is_h5 = NISARProductReader.is_hdf5_file(file_1) and NISARProductReader.is_hdf5_file(file_2)
+            if is_h5:
+                valid_pair, error_pair, pair_metadata = NISARValidator.validate_temporal_pair(file_1, file_2)
+            else:
+                valid_pair, error_pair, pair_metadata = ImageRegistration.validate_pair(file_1, file_2)
+            is_optical_sar = False
+        else:
+            is_optical_sar = decision.task == "optical_sar"
+            pair_validator = (
+                ImageRegistration.validate_optical_sar_pair
+                if is_optical_sar
+                else ImageRegistration.validate_pair
+            )
+            valid_pair, error_pair, pair_metadata = pair_validator(file_1, file_2)
         if not valid_pair:
             return {
                 "is_valid": False,
@@ -282,6 +292,52 @@ def execute_land_cover_node(state: AgentState) -> Dict[str, Any]:
     return {"task_result": result, "execution_trace": trace + [result.get("execution_trace") or {"node": "execute_land_cover", "model": tool.name}]}
 
 
+def execute_nisar_change_node(state: AgentState) -> Dict[str, Any]:
+    """Node: executes NISARChangeDetectionModel."""
+    tool = tool_registry.get_tool("nisar_change")
+    trace: List[Dict[str, Any]] = list(state.get("execution_trace") or [])
+    if not tool:
+        return {
+            "is_valid": False,
+            "error_message": "NISAR Change specialist tool is unavailable.",
+            "execution_trace": trace + [{"node": "execute_nisar_change", "status": "failed", "error": "Tool not found"}],
+        }
+    result = tool.run({
+        "image_path_a": state["file_1_path"],
+        "image_path_b": state["file_2_path"],
+        "query": state.get("query"),
+    })
+    result["answer"] = result.get("change_summary")
+    trace_entry = result.get("execution_trace") or {"node": "execute_nisar_change", "model": tool.name}
+    return {
+        "task_result": result,
+        "execution_trace": trace + [trace_entry],
+    }
+
+
+def execute_nisar_flood_node(state: AgentState) -> Dict[str, Any]:
+    """Node: executes NISARFloodInundationModel."""
+    tool = tool_registry.get_tool("nisar_flood")
+    trace: List[Dict[str, Any]] = list(state.get("execution_trace") or [])
+    if not tool:
+        return {
+            "is_valid": False,
+            "error_message": "NISAR Flood specialist tool is unavailable.",
+            "execution_trace": trace + [{"node": "execute_nisar_flood", "status": "failed", "error": "Tool not found"}],
+        }
+    result = tool.run({
+        "t1_path": state["file_1_path"],
+        "t2_path": state["file_2_path"],
+        "query": state.get("query"),
+    })
+    result["answer"] = result.get("flood_summary")
+    trace_entry = result.get("execution_trace") or {"node": "execute_nisar_flood", "model": tool.name}
+    return {
+        "task_result": result,
+        "execution_trace": trace + [trace_entry],
+    }
+
+
 def fuse_evidence_node(state: AgentState) -> Dict[str, Any]:
     """Node: assembles final answer, visual overlays, confidence, and PDF report."""
     if not state.get("is_valid", True) or state.get("error_message"):
@@ -331,6 +387,20 @@ def fuse_evidence_node(state: AgentState) -> Dict[str, Any]:
         "annotated_image_b64",
         "change_map_b64",
         "change_summary",
+        "flood_map_b64",
+        "flood_summary",
+        "new_flood_area_km2",
+        "new_flood_area_hectares",
+        "permanent_water_area_km2",
+        "inundated_vegetation_area_km2",
+        "receded_water_area_km2",
+        "total_water_area_t2_km2",
+        "water_expansion_ratio",
+        "changed_area_km2",
+        "changed_area_hectares",
+        "decreased_area_km2",
+        "increased_area_km2",
+        "mean_delta_db",
         "bounding_boxes",
         "box_count",
         "target",
@@ -341,8 +411,13 @@ def fuse_evidence_node(state: AgentState) -> Dict[str, Any]:
         if key in task_result and key not in final_payload:
             final_payload[key] = task_result[key]
 
-    if "overlay_b64" not in final_payload and final_payload.get("annotated_image_b64"):
-        final_payload["overlay_b64"] = final_payload["annotated_image_b64"]
+    if "overlay_b64" not in final_payload:
+        if final_payload.get("flood_map_b64"):
+            final_payload["overlay_b64"] = final_payload["flood_map_b64"]
+        elif final_payload.get("change_map_b64"):
+            final_payload["overlay_b64"] = final_payload["change_map_b64"]
+        elif final_payload.get("annotated_image_b64"):
+            final_payload["overlay_b64"] = final_payload["annotated_image_b64"]
 
     if state.get("include_report"):
         final_payload["report_pdf_b64"] = generate_pdf_report("SatQuery AI Evidence Report", final_payload)
@@ -374,6 +449,8 @@ def specialist_routing_condition(state: AgentState) -> str:
         "change": "execute_change",
         "optical_sar": "execute_optical_sar",
         "land_cover": "execute_land_cover",
+        "nisar_change": "execute_nisar_change",
+        "nisar_flood": "execute_nisar_flood",
     }
     return routing_map.get(task, "fuse_evidence")
 
@@ -407,6 +484,8 @@ class SatQueryStateGraph:
             builder.add_node("execute_change", execute_change_node)
             builder.add_node("execute_optical_sar", execute_optical_sar_node)
             builder.add_node("execute_land_cover", execute_land_cover_node)
+            builder.add_node("execute_nisar_change", execute_nisar_change_node)
+            builder.add_node("execute_nisar_flood", execute_nisar_flood_node)
             builder.add_node("fuse_evidence", fuse_evidence_node)
 
             builder.add_edge(START, "validate_inputs")
@@ -425,18 +504,29 @@ class SatQueryStateGraph:
                     "execute_change": "execute_change",
                     "execute_optical_sar": "execute_optical_sar",
                     "execute_land_cover": "execute_land_cover",
+                    "execute_nisar_change": "execute_nisar_change",
+                    "execute_nisar_flood": "execute_nisar_flood",
                     "fuse_evidence": "fuse_evidence",
                 },
             )
 
-            for specialist_node in ("execute_vqa", "execute_caption", "execute_grounding", "execute_change", "execute_optical_sar", "execute_land_cover"):
+            for specialist_node in (
+                "execute_vqa",
+                "execute_caption",
+                "execute_grounding",
+                "execute_change",
+                "execute_optical_sar",
+                "execute_land_cover",
+                "execute_nisar_change",
+                "execute_nisar_flood",
+            ):
                 builder.add_edge(specialist_node, "fuse_evidence")
 
             builder.add_edge("fuse_evidence", END)
 
             checkpointer = MemorySaver()
             self._compiled_graph = builder.compile(checkpointer=checkpointer)
-            logger.info("Compiled native LangGraph StateGraph agent.")
+            logger.info("Compiled native LangGraph StateGraph agent with NISAR radar nodes.")
         except Exception as exc:
             logger.info(f"Using built-in DAG runner ({exc}).")
             self._compiled_graph = None
@@ -474,6 +564,8 @@ class SatQueryStateGraph:
                 "execute_change": execute_change_node,
                 "execute_optical_sar": execute_optical_sar_node,
                 "execute_land_cover": execute_land_cover_node,
+                "execute_nisar_change": execute_nisar_change_node,
+                "execute_nisar_flood": execute_nisar_flood_node,
             }
             if specialist in specialist_map:
                 state.update(specialist_map[specialist](state))

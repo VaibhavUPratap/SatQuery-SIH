@@ -28,9 +28,9 @@ async def execute_change(
 
     paths = []
     try:
-        path_t1 = await persist_upload(file_t1, "change_t1")
+        path_t1, _ = await persist_upload(file_t1, "change_t1")
         paths.append(path_t1)
-        path_t2 = await persist_upload(file_t2, "change_t2")
+        path_t2, _ = await persist_upload(file_t2, "change_t2")
         paths.append(path_t2)
 
         valid_t1, error_t1, metadata_t1 = InputValidator.validate_image(path_t1)

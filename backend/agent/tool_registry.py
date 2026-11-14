@@ -8,8 +8,10 @@ from backend.models.change_detection.model import ChangeDetectionModel
 from backend.models.change_vqa.model import ChangeVQAModel
 from backend.models.optical_sar.model import OpticalSARFusionModel
 from backend.models.land_cover.model import BigEarthNetLandCoverModel
+from backend.models.nisar.change_detection import NISARChangeDetectionModel
+from backend.models.nisar.flood_inundation import NISARFloodInundationModel
 
-logger = logging.getLogger("satquery.registry")
+logger = logging.getLogger("terrapulse.registry")
 
 class ToolRegistry:
     """
@@ -32,7 +34,10 @@ class ToolRegistry:
             self.register("change_vqa", ChangeVQAModel())
             self.register("optical_sar", OpticalSARFusionModel())
             self.register("land_cover", BigEarthNetLandCoverModel())
-            logger.info("Successfully registered specialist models.")
+            # TerraPulse NISAR Specialist Tools
+            self.register("nisar_change", NISARChangeDetectionModel())
+            self.register("nisar_flood", NISARFloodInundationModel())
+            logger.info("Successfully registered specialist models including NISAR radar engines.")
         except Exception as e:
             logger.error(f"Error registering specialist models: {str(e)}")
 
