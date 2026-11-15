@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   GeoJSON,
   ImageOverlay,
@@ -26,7 +26,7 @@ function MapReadout({ onMove }) {
   return null;
 }
 
-function MapActions({ selectedRegion, onFit }) {
+function MapActions({ selectedRegion, onFit, expanded, onToggleExpanded }) {
   const map = useMap();
   useEffect(() => {
     if (!selectedRegion) return;
@@ -40,7 +40,12 @@ function MapActions({ selectedRegion, onFit }) {
     }
     if (points.length) map.fitBounds(points, { padding: [42, 42], maxZoom: 15 });
   }, [map, selectedRegion]);
-  return <button className="map-fit-button" type="button" onClick={() => onFit(map)}>Fit AOI</button>;
+  return (
+    <div className="map-action-group">
+      <button className="map-fit-button" type="button" onClick={() => onFit(map)}>Fit AOI</button>
+      <button className="map-focus-button" type="button" onClick={onToggleExpanded}>{expanded ? 'Exit focus' : 'Focus map'}</button>
+    </div>
+  );
 }
 
 function formatNumber(value, digits = 2) {
@@ -71,7 +76,7 @@ function candidateCsv(features) {
   return [headers.join(','), ...rows].join('\n');
 }
 
-function LayerControl({ layers, setLayers, polarization }) {
+function LayerControl({ layers, setLayers, polarization, onReset }) {
   return (
     <div className="layer-control">
       <div className="panel-kicker">MAP LAYERS</div>
@@ -87,6 +92,7 @@ function LayerControl({ layers, setLayers, polarization }) {
           )}
         </div>
       ))}
+      <button className="layer-reset" type="button" onClick={onReset}>Reset layer view</button>
       <p className="layer-note">{polarization} overlays use compact processed previews; raw HDF5 products remain server-side.</p>
     </div>
   );
@@ -100,7 +106,6 @@ export default function NisarBengaluruView({ onBack }) {
   const [catalog, setCatalog] = useState(null);
   const [polarization, setPolarization] = useState('HH');
   const [selectedDate, setSelectedDate] = useState('20261110');
-  const [opacity, setOpacity] = useState(0.45);
   const [candidateGeojson, setCandidateGeojson] = useState(null);
   const [selectedRegionId, setSelectedRegionId] = useState('');
   const [regionFilter, setRegionFilter] = useState('');
@@ -120,7 +125,7 @@ export default function NisarBengaluruView({ onBack }) {
   const [jobStatus, setJobStatus] = useState(null);
   const [jobResult, setJobResult] = useState(null);
   const [jobTrace, setJobTrace] = useState([]);
-  const mapRef = useRef(null);
+  const [mapExpanded, setMapExpanded] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -156,6 +161,14 @@ export default function NisarBengaluruView({ onBack }) {
   const temporalStats = catalog?.temporal_statistics?.filter((row) => row.polarization === polarization) || [];
   const before = temporalStats.find((row) => row.date === '20261029') || {};
   const after = temporalStats.find((row) => row.date === '20261110') || {};
+  const polarizationSummaries = (catalog?.measurements?.polarizations || []).map((item) => {
+    const summary = catalog?.change_summary?.find?.((row) => row.polarization === item) || {};
+    const area = (catalog?.area_summary || [])
+      .filter((row) => row.polarization === item)
+      .reduce((total, row) => total + Number(row.area_hectares || 0), 0);
+    return { polarization: item, pixels: Number(summary.potential_change_pixel_count || 0), area };
+  });
+  const evidenceStatuses = catalog?.external_evidence || [];
   const candidates = candidateGeojson?.features || [];
   const selectedRegion = candidates.find((feature) => feature.properties?.region_id === selectedRegionId);
   const filteredCandidates = useMemo(() => candidates
@@ -168,6 +181,17 @@ export default function NisarBengaluruView({ onBack }) {
   const selectedBeforeAsset = catalog?.assets?.[`${polarization.toLowerCase()}_preview_20261029`];
   const selectedAfterAsset = catalog?.assets?.[`${polarization.toLowerCase()}_preview_20261110`];
   const differenceAsset = catalog?.assets?.[polarization === 'HH' ? 'hh_difference' : 'hv_difference'];
+  const elapsedDays = Math.round((new Date('2026-11-10') - new Date('2026-10-29')) / 86400000);
+
+  function resetLayers() {
+    setLayers({
+      before: { label: '29 Oct backscatter', visible: true, opacity: 0.72, color: '#789aa3' },
+      after: { label: '10 Nov backscatter', visible: true, opacity: 0.72, color: '#d8a15d' },
+      difference: { label: 'Temporal difference', visible: true, opacity: 0.8, color: '#ef7657' },
+      candidates: { label: 'Candidate regions', visible: true, opacity: 0.45, color: '#9ad49e' },
+      aoi: { label: 'AOI boundary', visible: true, color: '#ef7657' },
+    });
+  }
 
   async function runProcessing() {
     if (!catalog || processing) return;
@@ -234,13 +258,13 @@ export default function NisarBengaluruView({ onBack }) {
             <Kpi label={`${polarization} candidate pixels`} value={formatNumber(changeSummary.potential_change_pixel_count)} detail={`${formatNumber(changeSummary.potential_change_percentage_of_common, 2)}% of common valid pixels`} />
             <Kpi label="Candidate area" value={formatArea(selectedSummary.reduce((sum, row) => sum + Number(row.area_hectares || 0), 0))} detail="statistical candidate estimate" />
             <Kpi label="Median backscatter" value={`${formatNumber(after.median, 3)} linear`} detail={`before ${formatNumber(before.median, 3)} · 10 m grid`} />
-            <Kpi label="Elapsed time" value="12 days" detail="two acquisitions only" />
+            <Kpi label="Elapsed time" value={`${elapsedDays} days`} detail="two acquisitions only" />
           </section>
 
-          <section className="nisar-analysis-grid">
-            <div className="map-frame nisar-map-frame">
+          <section className={`nisar-analysis-grid ${mapExpanded ? 'map-expanded' : ''}`}>
+            <div className="map-frame nisar-map-frame" aria-label={`${polarization} analysis map`}>
               <div className="map-header"><div><span className="panel-kicker">INTERACTIVE MAP</span><strong>{polarization} spatial evidence</strong></div><span className="map-coordinate">{coordinates ? `${coordinates.lat.toFixed(5)}°, ${coordinates.lng.toFixed(5)}°` : 'Move over map for coordinates'}</span></div>
-              <MapContainer ref={mapRef} className="map nisar-main-map" center={[12.975, 77.6]} zoom={10} scrollWheelZoom>
+              <MapContainer className="map nisar-main-map" center={[12.975, 77.6]} zoom={10} scrollWheelZoom>
                 <TileLayer attribution="© OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                 {layers.before.visible && <ImageOverlay url={assetUrl(selectedBeforeAsset)} bounds={AOI_BOUNDS} opacity={layers.before.opacity} />}
                 {layers.after.visible && <ImageOverlay url={assetUrl(selectedAfterAsset)} bounds={AOI_BOUNDS} opacity={layers.after.opacity} />}
@@ -249,12 +273,12 @@ export default function NisarBengaluruView({ onBack }) {
                 {layers.candidates.visible && candidateGeojson && <GeoJSON key={`${polarization}-${selectedRegionId}`} data={candidateGeojson} onEachFeature={(feature, layer) => layer.on('click', () => setSelectedRegionId(feature.properties?.region_id || ''))} style={(feature) => ({ color: feature.properties?.region_id === selectedRegionId ? '#f4f0e8' : feature.properties?.direction === 'increase' ? '#d9694b' : '#2c7a7b', weight: feature.properties?.region_id === selectedRegionId ? 3 : 1, fillOpacity: feature.properties?.region_id === selectedRegionId ? 0.8 : layers.candidates.opacity })} />}
                 <FitBounds bounds={AOI_BOUNDS} />
                 <MapReadout onMove={setCoordinates} />
-                <MapActions selectedRegion={selectedRegion} onFit={(map) => map.fitBounds(AOI_BOUNDS, { padding: [18, 18] })} />
+                <MapActions selectedRegion={selectedRegion} onFit={(map) => map.fitBounds(AOI_BOUNDS, { padding: [18, 18] })} expanded={mapExpanded} onToggleExpanded={() => setMapExpanded((expanded) => !expanded)} />
               </MapContainer>
               <div className="nisar-map-footer"><span><i className="legend-swatch increase" /> Increase</span><span><i className="legend-swatch decrease" /> Decrease</span><span>EPSG:32643 · 10 m output grid</span></div>
             </div>
             <aside className="nisar-control-stack">
-              <LayerControl layers={layers} setLayers={setLayers} polarization={polarization} />
+              <LayerControl layers={layers} setLayers={setLayers} polarization={polarization} onReset={resetLayers} />
               <div className="nisar-panel">
                 <div className="panel-kicker">SELECTED OBSERVATION</div>
                 <strong>{catalog.observations.find((observation) => observation.date.replaceAll('-', '') === selectedDate)?.label}</strong>
@@ -284,16 +308,25 @@ export default function NisarBengaluruView({ onBack }) {
             <div className="polarization-callout"><strong>{polarization} channel</strong><span>HH is co-polarized horizontal transmit/receive; HV is cross-polarized horizontal transmit/vertical receive. Only channels present in the verified product are shown.</span></div>
           </section>
 
+          <section className="nisar-section">
+            <div className="section-title"><div><span className="panel-kicker">POLARIZATION COMPARISON</span><h2>Which channel found more candidates?</h2></div><span className="muted">Same AOI, same temporal pair</span></div>
+            <div className="polarization-grid">{polarizationSummaries.map((summary) => <button key={summary.polarization} type="button" className={`polarization-card ${summary.polarization === polarization ? 'active' : ''}`} onClick={() => setPolarization(summary.polarization)}><span>{summary.polarization}</span><strong>{formatNumber(summary.pixels)} pixels</strong><small>{formatArea(summary.area)} candidate area</small><i><em style={{ width: `${Math.min(100, (summary.pixels / Math.max(...polarizationSummaries.map((item) => item.pixels), 1)) * 100)}%` }} /></i></button>)}</div>
+          </section>
+
           <section className="nisar-section region-section">
             <div className="section-title"><div><span className="panel-kicker">CANDIDATE REGION EXPLORER</span><h2>{formatNumber(candidates.length, 0)} {polarization} candidate radar-change regions</h2></div><span className="muted">Select a row to highlight and zoom</span></div>
             <div className="region-toolbar"><input aria-label="Filter candidate regions" placeholder="Filter by region or direction" value={regionFilter} onChange={(event) => setRegionFilter(event.target.value)} /><select aria-label="Sort candidate regions" value={regionSort} onChange={(event) => setRegionSort(event.target.value)}><option value="area_hectares">Sort by area</option><option value="mean_difference_db">Sort by mean dB difference</option><option value="pixel_count">Sort by pixels</option></select></div>
             <div className="region-table-wrap"><table className="region-table"><thead><tr><th>Region</th><th>Direction</th><th>Area</th><th>Mean Δ dB</th><th>Centroid</th></tr></thead><tbody>{filteredCandidates.map((feature) => { const properties = feature.properties || {}; return <tr key={properties.region_id} className={properties.region_id === selectedRegionId ? 'selected' : ''} onClick={() => setSelectedRegionId(properties.region_id)}><td><strong>{properties.region_id}</strong><small>{properties.pixel_count} pixels</small></td><td><span className={`direction-tag ${properties.direction}`}>{properties.direction}</span></td><td>{formatArea(properties.area_hectares)}</td><td>{formatNumber(properties.mean_difference_db)} dB</td><td>{formatNumber(properties.centroid_latitude, 4)}, {formatNumber(properties.centroid_longitude, 4)}</td></tr>; })}</tbody></table></div>
-            {selectedRegion && <div className="selected-region-card"><div><span className="panel-kicker">SELECTED REGION</span><strong>{selectedRegion.properties.region_id} · {selectedRegion.properties.direction}</strong></div><span>{formatArea(selectedRegion.properties.area_hectares)} · {formatNumber(selectedRegion.properties.mean_difference_db)} dB mean · external land-cover context not verified</span></div>}
+            {selectedRegion && <div className="selected-region-card"><div><span className="panel-kicker">SELECTED REGION</span><strong>{selectedRegion.properties.region_id} · {selectedRegion.properties.direction}</strong></div><span>{formatArea(selectedRegion.properties.area_hectares)} · {formatNumber(selectedRegion.properties.mean_difference_db)} dB mean · range {formatNumber(selectedRegion.properties.minimum_difference_db)} to {formatNumber(selectedRegion.properties.maximum_difference_db)} dB · centroid {formatNumber(selectedRegion.properties.centroid_latitude, 4)}, {formatNumber(selectedRegion.properties.centroid_longitude, 4)}</span></div>}
           </section>
 
           <section className="nisar-lower-grid">
             <div className="nisar-section interpretation-panel"><div className="panel-kicker">GROUNDED AI INTERPRETATION</div><h2>What the evidence supports</h2><ul><li><strong>Observed:</strong> {polarization} temporal backscatter changed between the two acquisitions; the measured median moved from {formatNumber(before.median, 3)} to {formatNumber(after.median, 3)} linear power.</li><li><strong>Algorithm-generated:</strong> {formatNumber(changeSummary.potential_change_pixel_count)} pixels exceeded the robust {formatNumber(changeSummary.robust_threshold_db)} dB screening threshold.</li><li><strong>Possible explanations:</strong> surface moisture, vegetation/roughness, geometry, or built-surface changes may contribute; this pair does not identify a physical cause.</li><li><strong>Verification needed:</strong> optical imagery, rainfall, soil moisture, land-cover, or field evidence. Current catalog marks these sources as not verified.</li></ul></div>
             <div className="nisar-section"><div className="panel-kicker">PROCESSING TRANSPARENCY</div><h2>{processing ? 'Analysis in progress' : jobStatus?.status === 'completed' ? 'Analysis complete' : 'Ready to run local analysis'}</h2><div className="stage-list">{STAGES.map((stage, index) => { const completed = jobTrace.some((step) => `${step.node || ''}`.toLowerCase().includes(stage.split(' ')[0])); const active = processing && (jobStatus?.status || '').toLowerCase().includes(stage.split(' ')[0]); return <div className={`stage-item ${completed ? 'complete' : ''} ${active ? 'active' : ''}`} key={stage}><i>{completed ? '✓' : String(index + 1).padStart(2, '0')}</i><span>{stage}</span></div>; })}</div>{jobTrace.length > 0 && <details className="nisar-trace"><summary>Execution trace ({jobTrace.length} events)</summary><ul>{jobTrace.map((step, index) => <li key={`${step.node || 'step'}-${index}`}><strong>{step.node || 'workflow step'}</strong> · {step.status || 'recorded'}</li>)}</ul></details>}</div>
+          </section>
+          <section className="nisar-section evidence-strip">
+            <div className="section-title"><div><span className="panel-kicker">CORROBORATING EVIDENCE</span><h2>Context availability</h2></div><span className="muted">No independent cause is inferred</span></div>
+            <div className="evidence-grid">{evidenceStatuses.map((evidence) => <div className="evidence-item" key={evidence.source}><span className={`evidence-dot ${evidence.status}`} /><div><strong>{evidence.source}</strong><small>{evidence.purpose}</small></div><b>{evidence.status === 'loaded' ? 'Loaded' : 'Not verified'}</b></div>)}</div>
           </section>
           <section className="nisar-limitations"><strong>Scientific boundary</strong><span>Candidate radar-change regions are not confirmed flooding, construction, urbanization, deforestation, or other environmental events. This workspace preserves the uncertainty and provenance of the verified Bengaluru processing.</span></section>
         </>

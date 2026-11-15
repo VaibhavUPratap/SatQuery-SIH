@@ -53,6 +53,23 @@ The reported candidate totals are measured outputs: HH 5,741 pixels / 57.41 ha a
 - Keep raw HDF5 and large rasters server-side; do not load source products into the browser.
 - Preserve the existing processing request, job, trace, and report contracts.
 
+## Enhancement pass — 15 November 2026
+
+The follow-up UI enhancement keeps the same data flow and adds:
+
+- Focus-map mode with an explicit exit control and resettable layer view.
+- Cross-polarization comparison cards using the measured HH/HV candidate
+  pixels and area summaries from the catalog.
+- More complete selected-region details, including dB range and centroid.
+- A corroborating-evidence availability strip that distinguishes loaded data
+  from sources that are not verified.
+- A computed acquisition interval instead of a duplicated display constant.
+- Mobile verification for the new evidence and polarization sections.
+
+Live verification confirmed the workspace renders 100 bounded candidate rows,
+focus mode toggles, HH/HV comparison changes update the KPI values, four
+evidence-status cards render, and the layout remains available at 390px.
+
 ## Known limitations
 
 - Only two acquisitions are available, so no intermediate time series is invented.

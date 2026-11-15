@@ -106,3 +106,15 @@ The two commits for this release are pushed to `origin/main`. Unrelated
 `.DS_Store`, generated report-output, and user-provided prompt files remain
 outside the release commit.
 
+## UI enhancement pass — 15 November 2026
+
+- Added map focus mode and a resettable layer configuration.
+- Added measured HH/HV cross-polarization comparison cards.
+- Added richer selected-region dB range and centroid details.
+- Added a corroborating-evidence status strip with explicit `not_verified`
+  labels.
+- Replaced the hardcoded elapsed-day label with a computed acquisition
+  interval.
+- Verified with the production frontend build and live browser checks:
+  candidate rows, focus mode, HV switching, evidence cards, and 390px layout.
+

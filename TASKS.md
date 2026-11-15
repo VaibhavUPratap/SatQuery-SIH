@@ -56,6 +56,14 @@ Progress is updated phase-by-phase below. A phase is marked complete only when i
 - [x] **Phase 13 — Testing:** 80 backend tests, frontend build, API smoke,
   browser interaction checks, and React cleanup fix completed.
 
+### UI enhancement pass — 15 November 2026
+
+- [x] Added focus-map mode and resettable layer controls.
+- [x] Added measured HH/HV candidate comparison cards.
+- [x] Added richer candidate-region dB range and centroid detail.
+- [x] Added external-evidence availability status cards.
+- [x] Verified desktop and 390px responsive rendering, plus frontend build.
+
 ## Completed Milestones
 
 - [x] **Phase 0: Project Structure Setup**
