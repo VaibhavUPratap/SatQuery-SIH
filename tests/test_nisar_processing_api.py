@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 
 from backend.api.main import app
 from backend.preprocessing.nisar_reader import NISARProductReader
+from backend.services.nisar_processing import NISARProcessingService
 
 
 @pytest.fixture
@@ -92,3 +93,15 @@ def test_failed_job_exposes_failure_and_trace():
         assert trace.status_code == 200
         assert trace.json()["trace"][0]["node"] == "resolve_and_validate"
         assert client.get(f"/api/v1/nisar/jobs/{job['job_id']}/results").status_code == 422
+
+
+def test_granule_identifier_resolves_downloaded_h5_without_extension(tmp_path):
+    service = NISARProcessingService()
+    product = tmp_path / "NISAR_L2_PR_GCOV_034_077_D_082_4005_DHDH_A_20261029T131919_20261029T131954_P05036_N_F_J_001.h5"
+    NISARProductReader.create_synthetic_nisar_gcov(str(product), width=16, height=16)
+    service.allowed_roots = [tmp_path]
+    resolved = service.resolve_observation(
+        "NISAR_L2_PR_GCOV_034_077_D_082_4005_DHDH_A_20261029T131919_20261029T131954_P05036_N_F_J_001"
+    )
+    assert resolved.name.endswith(".h5")
+    assert resolved.is_file()

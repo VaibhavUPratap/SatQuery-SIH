@@ -7,7 +7,8 @@ products, or validated GeoTIFF extracts. It never treats a search result,
 synthetic product, or fabricated identifier as an observation.
 
 Products are resolved from `datasets/` by basename, from `NISAR_DATA_ROOT`, or
-from an approved local path in debug deployments.
+from an approved local path in debug deployments. Catalog granule identifiers
+may omit the `.h5` suffix; the resolver checks both forms.
 
 ## Start the API
 
@@ -42,6 +43,10 @@ The response contains a `job_id`. Poll:
 
 Job status is one of `queued`, `validating`, `preprocessing`, `analysing`,
 `generating_evidence`, `completed`, or `failed`.
+
+The supplied Bengaluru source grids are larger than the normal browser/upload
+pixel limit. Always provide `aoi_bbox`; validation uses a bounded source sample
+and processing reads only the requested AOI window.
 
 Optional local corroboration can be supplied through `parameters.external_sources`:
 

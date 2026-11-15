@@ -75,6 +75,7 @@ def _run_nisar_job(job_id: str, request: NISARProcessRequest) -> None:
                 "include_report": True,
                 "thread_id": job_id,
                 "nisar_processing_result": service_result,
+                "allow_large_nisar_grid": True,
             },
             config={"configurable": {"thread_id": job_id}},
         )

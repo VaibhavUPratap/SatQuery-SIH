@@ -95,16 +95,20 @@ class NISARProcessingService:
             raise NISARProcessError("Local observation paths are restricted to configured NISAR data roots.")
 
         basename = Path(identifier).name
+        candidate_names = [basename]
+        if Path(basename).suffix.lower() not in {".h5", ".hdf5"}:
+            candidate_names.extend([f"{basename}.h5", f"{basename}.hdf5"])
         for root in self.allowed_roots:
             if not root.exists():
                 continue
-            matches = list(root.rglob(basename))
-            if matches:
-                return matches[0].resolve()
+            for candidate_name in candidate_names:
+                matches = list(root.rglob(candidate_name))
+                if matches:
+                    return matches[0].resolve()
 
         raise NISARProcessError(
             f"Observation '{identifier}' was not found in configured local NISAR data roots. "
-            "Search metadata does not substitute for a downloaded product."
+            f"Checked {', '.join(candidate_names)}. Search metadata does not substitute for a downloaded product."
         )
 
     @staticmethod
@@ -115,14 +119,30 @@ class NISARProcessingService:
         except ValueError:
             return False
 
+    @staticmethod
+    def _normalize_crs(crs: str) -> str:
+        value = str(crs).strip()
+        return f"EPSG:{value}" if value.isdigit() else value
+
     def _validate_pair(self, path_1: Path, path_2: Path, polarizations: list[str]) -> dict[str, Any]:
         hdf5_pair = NISARProductReader.is_hdf5_file(str(path_1)) and NISARProductReader.is_hdf5_file(str(path_2))
         if hdf5_pair:
-            valid, error, pair = NISARValidator.validate_temporal_pair(str(path_1), str(path_2))
+            valid, error, pair = NISARValidator.validate_temporal_pair(
+                str(path_1),
+                str(path_2),
+                allow_large_grid=True,
+            )
             if not valid:
                 raise NISARProcessError(error)
             available = set(pair.get("common_polarizations", []))
-            missing = [pol for pol in polarizations if pol not in available]
+            available_aliases = available | {
+                "HHHH" if "HH" in available else "",
+                "HVHV" if "HV" in available else "",
+                "HH" if "HHHH" in available else "",
+                "HV" if "HVHV" in available else "",
+            }
+            available_aliases.discard("")
+            missing = [pol for pol in polarizations if pol not in available_aliases]
             if missing:
                 raise NISARProcessError(f"Requested polarization(s) unavailable in both products: {', '.join(missing)}.")
             return {"validation": "NISAR HDF5 temporal pair", "pair": pair}
@@ -188,6 +208,7 @@ class NISARProcessingService:
         crs = metadata.get("crs")
         if not crs:
             raise NISARProcessError(f"NISAR product '{path.name}' has no projected CRS.")
+        crs = self._normalize_crs(crs)
         projected = transform_bounds("EPSG:4326", crs, *bbox, densify_pts=21)
         dataset_name = polarization
         with h5py.File(path, "r") as handle:
@@ -238,6 +259,16 @@ class NISARProcessingService:
             raise NISARProcessError("Flood analysis requires the HH polarization.")
         path_1 = self.resolve_observation(request.observation_1)
         path_2 = self.resolve_observation(request.observation_2)
+        for path in (path_1, path_2):
+            metadata = NISARProductReader.inspect_metadata(str(path))
+            if (
+                metadata.get("width", 0) * metadata.get("height", 0) > settings.MAX_IMAGE_PIXELS
+                and request.aoi_bbox is None
+            ):
+                raise NISARProcessError(
+                    f"Observation '{path.name}' exceeds the full-grid pixel limit; "
+                    "provide a WGS84 aoi_bbox so processing can use a bounded window."
+                )
         compatibility = self._validate_pair(path_1, path_2, request.polarizations)
         requested = request.polarizations
         work_dir = Path(tempfile.mkdtemp(prefix="terrapulse_nisar_"))

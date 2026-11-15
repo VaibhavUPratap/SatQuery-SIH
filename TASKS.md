@@ -7,7 +7,7 @@ external-data and independent-label limitations explicitly preserved.**
 
 Last verification:
 
-- Backend regression suite: **79 passed**.
+- Backend regression suite: **80 passed**.
 - Frontend production build: **successful** with `npm --prefix frontend run build`.
 - FastAPI health smoke test: **200 OK** (`TerraPulse AI API`).
 - Scientific limitation retained: NISAR outputs are candidate radar-backscatter anomalies, not independently confirmed environmental events.

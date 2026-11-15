@@ -35,7 +35,23 @@ def validate_inputs_node(state: AgentState) -> Dict[str, Any]:
             "execution_trace": trace + [{"node": "validate_inputs", "status": "failed", "error": "Primary image missing"}],
         }
 
-    valid_1, error_1, meta_1 = InputValidator.validate_image(file_1)
+    nisar_inputs = (
+        file_1.lower().endswith((".h5", ".hdf5"))
+        and (not file_2 or file_2.lower().endswith((".h5", ".hdf5")))
+        and (
+            state.get("requested_task") in {"nisar_change", "nisar_flood"}
+            or state.get("nisar_processing_result")
+        )
+    )
+    if nisar_inputs:
+        from backend.validation.nisar_validator import NISARValidator
+
+        valid_1, error_1, meta_1 = NISARValidator.validate_product(
+            file_1,
+            allow_large_grid=bool(state.get("nisar_processing_result")),
+        )
+    else:
+        valid_1, error_1, meta_1 = InputValidator.validate_image(file_1)
     if not valid_1:
         return {
             "is_valid": False,
@@ -45,7 +61,15 @@ def validate_inputs_node(state: AgentState) -> Dict[str, Any]:
 
     pair_metadata = None
     if file_2:
-        valid_2, error_2, meta_2 = InputValidator.validate_image(file_2)
+        if nisar_inputs:
+            from backend.validation.nisar_validator import NISARValidator
+
+            valid_2, error_2, meta_2 = NISARValidator.validate_product(
+                file_2,
+                allow_large_grid=bool(state.get("nisar_processing_result")),
+            )
+        else:
+            valid_2, error_2, meta_2 = InputValidator.validate_image(file_2)
         if not valid_2:
             return {
                 "is_valid": False,
@@ -79,7 +103,14 @@ def validate_inputs_node(state: AgentState) -> Dict[str, Any]:
             from backend.validation.nisar_validator import NISARValidator
             is_h5 = NISARProductReader.is_hdf5_file(file_1) and NISARProductReader.is_hdf5_file(file_2)
             if is_h5:
-                valid_pair, error_pair, pair_metadata = NISARValidator.validate_temporal_pair(file_1, file_2)
+                valid_pair, error_pair, pair_metadata = NISARValidator.validate_temporal_pair(
+                    file_1,
+                    file_2,
+                    allow_large_grid=bool(
+                        state.get("allow_large_nisar_grid")
+                        or state.get("nisar_processing_result")
+                    ),
+                )
             else:
                 valid_pair, error_pair, pair_metadata = ImageRegistration.validate_pair(file_1, file_2)
             is_optical_sar = False

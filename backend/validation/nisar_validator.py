@@ -18,7 +18,12 @@ class NISARValidator:
     """Validator for NISAR HDF5 files and multi-temporal NISAR observation pairs."""
 
     @classmethod
-    def validate_product(cls, file_path: str) -> Tuple[bool, str, Dict[str, Any]]:
+    def validate_product(
+        cls,
+        file_path: str,
+        *,
+        allow_large_grid: bool = False,
+    ) -> Tuple[bool, str, Dict[str, Any]]:
         """Validate a single NISAR HDF5 product file.
 
         Returns:
@@ -49,13 +54,33 @@ class NISARValidator:
         if width <= 0 or height <= 0:
             return False, f"Invalid NISAR grid dimensions: width={width}, height={height}.", metadata
 
-        if width * height > settings.MAX_IMAGE_PIXELS:
+        grid_pixels = width * height
+        if grid_pixels > settings.MAX_IMAGE_PIXELS and not allow_large_grid:
             return False, f"NISAR grid pixels ({width*height}) exceed system maximum limit ({settings.MAX_IMAGE_PIXELS}).", metadata
 
         # Inspect data sample for NaN or corrupt arrays
         try:
             primary_pol = pols[0]
-            arr, layer_info = NISARProductReader.read_backscatter(file_path, primary_pol, to_db=False)
+            if grid_pixels > settings.MAX_IMAGE_PIXELS:
+                with h5py.File(file_path, "r") as handle:
+                    group = handle["/science/LSAR/GCOV/grids/frequencyA"]
+                    dataset_name = primary_pol if primary_pol in group else primary_pol.replace("HH", "HHHH").replace("HV", "HVHV")
+                    dataset = group[dataset_name]
+                    row_start = max(0, (dataset.shape[0] - min(dataset.shape[0], 1024)) // 2)
+                    col_start = max(0, (dataset.shape[1] - min(dataset.shape[1], 1024)) // 2)
+                    sample = dataset[
+                        row_start:row_start + min(dataset.shape[0], 1024),
+                        col_start:col_start + min(dataset.shape[1], 1024),
+                    ]
+                    arr = np.asarray(sample, dtype=np.float32)
+                    layer_info = {
+                        "mean": float(np.nanmean(arr)),
+                        "std": float(np.nanstd(arr)),
+                    }
+                metadata["validation_scope"] = "metadata_and_bounded_sample"
+            else:
+                arr, layer_info = NISARProductReader.read_backscatter(file_path, primary_pol, to_db=False)
+                metadata["validation_scope"] = "full_product_sample"
             nan_ratio = float(np.count_nonzero(~np.isfinite(arr)) / arr.size)
             if nan_ratio > 0.60:
                 return False, f"High missing/corrupted data ratio ({nan_ratio:.1%}) in NISAR band {primary_pol}.", metadata
@@ -74,6 +99,8 @@ class NISARValidator:
         cls,
         file_path_t1: str,
         file_path_t2: str,
+        *,
+        allow_large_grid: bool = False,
     ) -> Tuple[bool, str, Dict[str, Any]]:
         """Validate two NISAR observations for bi-temporal surface change detection.
 
@@ -83,11 +110,11 @@ class NISARValidator:
         3. Common polarizations exist (e.g., both contain HH or both contain HV).
         4. Spatial grids match or have high geographic overlap.
         """
-        ok1, err1, meta1 = cls.validate_product(file_path_t1)
+        ok1, err1, meta1 = cls.validate_product(file_path_t1, allow_large_grid=allow_large_grid)
         if not ok1:
             return False, f"T1 Product Validation Failed: {err1}", {"t1": meta1}
 
-        ok2, err2, meta2 = cls.validate_product(file_path_t2)
+        ok2, err2, meta2 = cls.validate_product(file_path_t2, allow_large_grid=allow_large_grid)
         if not ok2:
             return False, f"T2 Product Validation Failed: {err2}", {"t1": meta1, "t2": meta2}
 

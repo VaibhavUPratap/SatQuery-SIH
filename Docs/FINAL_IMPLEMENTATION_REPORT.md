@@ -31,7 +31,7 @@
 - Existing NISAR regression tests: 11 passed.
 - Generalized NISAR API and failure-path tests: 3 passed.
 - External evidence and NISAR report/routing tests: 15 passed.
-- Full backend regression suite: 79 passed.
+- Full backend regression suite: 80 passed.
 - Frontend production build: passed.
 - FastAPI health smoke test: HTTP 200.
 

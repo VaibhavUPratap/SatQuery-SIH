@@ -22,6 +22,7 @@ class AgentState(TypedDict, total=False):
     error_message: Optional[str]
     pair_metadata: Optional[Dict[str, Any]]
     nisar_processing_result: Optional[Dict[str, Any]]
+    allow_large_nisar_grid: bool
     route_task: Optional[str]
     route_reason: Optional[str]
 
