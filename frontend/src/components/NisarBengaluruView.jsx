@@ -15,7 +15,9 @@ const STAGES = ['product validation', 'metadata inspection', 'measurement extrac
 
 function FitBounds({ bounds }) {
   const map = useMap();
-  useEffect(() => map.fitBounds(bounds, { padding: [18, 18] }), [bounds, map]);
+  useEffect(() => {
+    map.fitBounds(bounds, { padding: [18, 18] });
+  }, [bounds, map]);
   return null;
 }
 
