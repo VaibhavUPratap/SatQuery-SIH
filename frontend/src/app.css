@@ -41,3 +41,51 @@
 @media (max-width: 700px) {
   .topbar, .stage-nav { padding-left: 20px; padding-right: 20px; }.system-status { display: none; }.stage-nav { overflow-x: auto; }.stage { white-space: nowrap; }.page { padding: 48px 20px 70px; }.file-grid, .detail-grid, .button-row, .mode-selector { grid-template-columns: 1fr; }.page h1 { font-size: 44px; }.back-button { position: static; margin-top: 20px; }.login-panel, .data-form, .classification, .report-sheet { padding: 20px; } footer { display: grid; padding-left: 20px; padding-right: 20px; }
 }
+
+.topbar-case-study { width: auto; margin: 0; padding: 10px 14px; font-size: 11px; }
+.nisar-case-study { max-width: 1180px; }
+.nisar-case-header { display: flex; justify-content: space-between; gap: 24px; align-items: flex-end; margin-bottom: 24px; }
+.nisar-case-header h2 { margin: 0 0 8px; color: #f4f0e8; font-size: 30px; letter-spacing: -.04em; }
+.nisar-case-header p, .muted { color: #84928c; line-height: 1.5; }
+.nisar-polarization-toggle { display: flex; gap: 6px; }
+.nisar-polarization-toggle button { border: 1px solid #40504c; padding: 10px 18px; color: #b9c4bd; background: #172120; }
+.nisar-polarization-toggle button.active { border-color: #9ad49e; color: #15201f; background: #9ad49e; }
+.nisar-case-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 16px; }
+.nisar-map-frame { margin-top: 0; }
+.nisar-case-sidebar { border: 1px solid #31403e; padding: 22px; background: #172120; }
+.nisar-case-sidebar h3 { margin-top: 0; color: #f4f0e8; }
+.nisar-stat-row { display: flex; gap: 10px; align-items: center; padding: 15px 0; border-top: 1px solid #31403e; }
+.nisar-stat-row div { display: grid; gap: 4px; flex: 1; }
+.nisar-stat-row strong { color: #d9ded7; text-transform: capitalize; }
+.nisar-stat-row small { color: #84928c; }
+.nisar-stat-row b { color: #9ad49e; white-space: nowrap; }
+.direction-dot { width: 9px; height: 9px; border-radius: 50%; }
+.direction-dot.increase { background: #d9694b; }
+.direction-dot.decrease { background: #2c7a7b; }
+.nisar-figure-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+.nisar-figure-row figure { margin: 0; border: 1px solid #31403e; background: #172120; }
+.nisar-figure-row img { display: block; width: 100%; height: auto; }
+.nisar-figure-row figcaption { padding: 10px 14px; color: #b9c4bd; font: 10px 'DM Mono'; text-transform: uppercase; }
+.nisar-map-tools { padding: 12px 14px; border-top: 1px solid #31403e; color: #b9c4bd; background: #172120; }
+.nisar-map-tools label { display: flex; justify-content: space-between; font: 10px 'DM Mono'; text-transform: uppercase; }
+.nisar-map-tools input { display: block; width: 100%; margin: 10px 0 12px; accent-color: #9ad49e; }
+.nisar-legend { display: flex; flex-wrap: wrap; gap: 12px; color: #84928c; font-size: 11px; }
+.nisar-legend span { display: inline-flex; gap: 5px; align-items: center; }
+.legend-swatch { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+.legend-swatch.increase { background: #d9694b; }
+.legend-swatch.decrease { background: #2c7a7b; }
+.legend-swatch.neutral { background: #9aa8a4; }
+.nisar-metadata-panel { display: grid; gap: 14px; margin-top: 16px; padding: 20px; border: 1px solid #31403e; background: #172120; }
+.nisar-metadata-panel h3 { margin: 0 0 6px; color: #f4f0e8; }
+.nisar-metadata-panel p { margin: 0; color: #84928c; line-height: 1.5; }
+.nisar-date-toggle { display: flex; flex-wrap: wrap; gap: 6px; }
+.nisar-date-toggle button { border: 1px solid #40504c; padding: 9px 12px; color: #b9c4bd; background: #101718; }
+.nisar-date-toggle button.active { border-color: #9ad49e; color: #15201f; background: #9ad49e; }
+.nisar-granule-id { overflow-wrap: anywhere; font: 10px 'DM Mono'; }
+.nisar-metadata-panel details { color: #b9c4bd; }
+.nisar-metadata-panel summary { cursor: pointer; font: 10px 'DM Mono'; text-transform: uppercase; }
+.nisar-metadata-panel ul { margin: 10px 0 0; padding-left: 20px; color: #84928c; line-height: 1.6; }
+@media (max-width: 800px) {
+  .nisar-case-header, .nisar-case-grid, .nisar-figure-row { grid-template-columns: 1fr; display: grid; align-items: start; }
+  .topbar-case-study { display: none; }
+}

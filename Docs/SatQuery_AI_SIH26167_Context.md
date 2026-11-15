@@ -1,5 +1,26 @@
 # SIH 2026 — SatQuery AI: Problem Statement & Proposed Approach Context
 
+## Verified NISAR case-study integration
+
+The application includes a read-only Bengaluru NISAR case-study view backed by
+the compact Phase 2–4 outputs. The API catalog reports the two verified
+observation dates, EPSG:32643 grid metadata, HH/HV candidate-area summaries,
+and the documented absence of verified external land-cover data. Candidate
+GeoJSON and preview PNG assets are served from the processed case-study
+directory; raw HDF5 products and large measurement rasters remain local and
+ignored by Git.
+
+The frontend view supports polarization selection, AOI/candidate-region map
+display, candidate area summaries, and temporal dB/potential-change previews.
+It is intentionally observational and does not claim a confirmed environmental
+event.
+
+Phase 7 scientific validation additionally verified the generated dB, ratio,
+and percentage equations against the original linear measurements, confirmed
+the mask/grid metadata, and corrected the map-display CRS boundary by
+transforming projected candidate geometry to WGS84 only for Leaflet rendering.
+The original projected GeoJSON remains preserved as the scientific asset.
+
 ## 1. Purpose of this document
 
 This document is a complete context package for an AI assistant, developer, researcher, or team member working on **Smart India Hackathon 2026 Problem Statement SIH26167**.

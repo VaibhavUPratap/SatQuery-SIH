@@ -1,6 +1,8 @@
 import logging
+from pathlib import Path
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from backend.config import settings
 from backend.api.endpoints import vqa_router, caption_router, grounding_router, change_router, optical_sar_router, agent_router, land_cover_router
 from backend.api.endpoints.auth import router as auth_router
@@ -42,6 +44,10 @@ app.include_router(land_cover_router, prefix="/api/v1", tags=["Specialist Tools"
 app.include_router(agent_router, prefix="/api/v1", tags=["Agent"], dependencies=protected)
 app.include_router(auth_router, prefix="/api/v1", tags=["Authentication"])
 app.include_router(jobs_router, prefix="/api/v1", tags=["Jobs"])
+
+nisar_assets = Path(__file__).resolve().parents[2] / "datasets" / "processed" / "bengaluru"
+if nisar_assets.is_dir():
+    app.mount("/api/v1/nisar/assets", StaticFiles(directory=nisar_assets), name="nisar-assets")
 
 @app.get("/")
 async def root():

@@ -4,10 +4,14 @@ from __future__ import annotations
 import logging
 import os
 import tempfile
+import csv
+import json
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel
+from rasterio.warp import transform_geom
 
 from backend.api.upload import persist_upload
 from backend.preprocessing.nisar_reader import NISARProductReader
@@ -16,6 +20,9 @@ from backend.validation.nisar_validator import NISARValidator
 
 logger = logging.getLogger("terrapulse.api.nisar")
 router = APIRouter(prefix="/nisar", tags=["NISAR Earth Observation"])
+CASE_STUDY_ROOT = Path(__file__).resolve().parents[3] / "datasets" / "processed" / "bengaluru"
+CASE_STUDY_ANALYSIS = CASE_STUDY_ROOT / "change_analysis"
+CASE_STUDY_CONTEXT = CASE_STUDY_ANALYSIS / "geospatial_interpretation"
 
 
 class SearchRequest(BaseModel):
@@ -31,6 +38,113 @@ class SynthesizeRequest(BaseModel):
     with_flood: bool = True
     width: int = 256
     height: int = 256
+
+
+@router.get("/bengaluru/case-study", status_code=status.HTTP_200_OK)
+async def get_bengaluru_case_study():
+    """Return the verified, read-only Bengaluru NISAR case-study catalog."""
+    summary_path = CASE_STUDY_CONTEXT / "candidate_area_summary.csv"
+    compatibility_path = CASE_STUDY_ROOT / "validation_grid_compatibility.json"
+    context_path = CASE_STUDY_CONTEXT / "data_context_status.json"
+    required = (summary_path, compatibility_path, context_path)
+    if not all(path.is_file() for path in required):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Verified Bengaluru NISAR case-study outputs are not available.",
+        )
+
+    with summary_path.open(newline="", encoding="utf-8") as handle:
+        area_summary = list(csv.DictReader(handle))
+    with compatibility_path.open(encoding="utf-8") as handle:
+        grid_validation = json.load(handle)
+    with context_path.open(encoding="utf-8") as handle:
+        context_status = json.load(handle)
+
+    return {
+        "study_area": {
+            "name": "Bengaluru, Karnataka, India",
+            "bbox_wgs84": [77.40, 12.80, 77.80, 13.15],
+            "crs": "EPSG:32643",
+            "resolution_m": 10,
+        },
+        "observations": [
+            {
+                "date": "2026-10-29",
+                "label": "29 October 2026",
+                "granule_id": "NISAR_L2_PR_GCOV_034_077_D_082_4005_DHDH_A_20261029T131919_20261029T131954_P05036_N_F_J_001",
+            },
+            {
+                "date": "2026-11-10",
+                "label": "10 November 2026",
+                "granule_id": "NISAR_L2_PR_GCOV_035_077_D_082_4005_DHDH_A_20261110T131920_20261110T131954_P05036_N_F_J_001",
+            },
+        ],
+        "measurements": {
+            "quantity": "RTC gamma-zero (linear power)",
+            "polarizations": ["HH", "HV"],
+            "sensor": "NASA-ISRO NISAR L-SAR",
+            "frequency": "L-band, center frequency 1.239 GHz",
+            "product": "L2 GCOV",
+            "track": 77,
+            "frame": 82,
+            "orbit_direction": "Descending",
+        },
+        "processing_history": [
+            "Phase 1: HDF5 integrity, metadata, measurement paths, and grid validation",
+            "Phase 2: windowed HH/HV extraction with quality and exception masks",
+            "Phase 3: common-valid temporal comparison and robust spatial screening",
+            "Phase 4: projected candidate polygonization and area calculation",
+        ],
+        "limitations": [
+            "Potential-change regions are statistical indicators, not confirmed environmental events.",
+            "No contemporaneous external land-cover, rainfall, soil-moisture, optical, or field evidence was verified.",
+            "Only two observations are available for this comparison.",
+        ],
+        "area_summary": area_summary,
+        "grid_validation": grid_validation,
+        "context_status": context_status,
+        "assets": {
+            "hh_candidates": "/api/v1/nisar/assets/change_analysis/geospatial_interpretation/hh_candidate_change_regions_epsg32643.geojson",
+            "hv_candidates": "/api/v1/nisar/assets/change_analysis/geospatial_interpretation/hv_candidate_change_regions_epsg32643.geojson",
+            "hh_candidates_wgs84": "/api/v1/nisar/bengaluru/candidate-regions/HH",
+            "hv_candidates_wgs84": "/api/v1/nisar/bengaluru/candidate-regions/HV",
+            "hh_difference": "/api/v1/nisar/assets/change_analysis/figures/hh_difference_db.png",
+            "hv_difference": "/api/v1/nisar/assets/change_analysis/figures/hv_difference_db.png",
+            "hh_potential_change": "/api/v1/nisar/assets/change_analysis/figures/hh_potential_change.png",
+            "hv_potential_change": "/api/v1/nisar/assets/change_analysis/figures/hv_potential_change.png",
+            "hh_preview_20261029": "/api/v1/nisar/assets/previews/nisar_hh_20261029_preview.png",
+            "hh_preview_20261110": "/api/v1/nisar/assets/previews/nisar_hh_20261110_preview.png",
+            "hv_preview_20261029": "/api/v1/nisar/assets/previews/nisar_hv_20261029_preview.png",
+            "hv_preview_20261110": "/api/v1/nisar/assets/previews/nisar_hv_20261110_preview.png",
+        },
+    }
+
+
+@router.get("/bengaluru/candidate-regions/{polarization}", status_code=status.HTTP_200_OK)
+async def get_bengaluru_candidate_regions(polarization: str):
+    """Return candidate polygons transformed to WGS84 for web-map display."""
+    normalized = polarization.upper()
+    if normalized not in {"HH", "HV"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Polarization must be HH or HV.")
+
+    source_path = CASE_STUDY_CONTEXT / f"{normalized.lower()}_candidate_change_regions_epsg32643.geojson"
+    if not source_path.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Candidate-region geometry is not available.")
+
+    with source_path.open(encoding="utf-8") as handle:
+        source = json.load(handle)
+    transformed = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                **feature,
+                "geometry": transform_geom("EPSG:32643", "EPSG:4326", feature["geometry"]),
+            }
+            for feature in source.get("features", [])
+        ],
+        "crs": {"type": "name", "properties": {"name": "EPSG:4326"}},
+    }
+    return transformed
 
 
 @router.get("/search", status_code=status.HTTP_200_OK)
