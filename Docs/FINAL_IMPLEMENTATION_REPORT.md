@@ -16,6 +16,12 @@
 - Preserved candidate-anomaly language and explicit corroboration limitations.
 - Corrected the BigEarthNet documentation contract to 12-band Sentinel-2.
 - Added API, workflow, limitation, and demo documentation.
+- Upgraded the existing Bengaluru temporal backscatter view in place with a
+  map-first analysis workspace, real statistics, temporal comparisons,
+  candidate-region exploration, grounded interpretation, processing stages,
+  and evidence exports.
+- Added `Docs/TEMPORAL_BACKSCATTER_UI_AUDIT.md` and a phase-by-phase release
+  record in `Docs/Execution_Checkpoints.md`.
 
 ## Endpoints
 
@@ -34,6 +40,10 @@
 - Full backend regression suite: 80 passed.
 - Frontend production build: passed.
 - FastAPI health smoke test: HTTP 200.
+- Bengaluru catalog smoke test: HTTP 200 with four temporal-statistics rows.
+- Live browser smoke test: HH/HV switching, layer toggle, side-by-side mode,
+  candidate filtering/selection, export controls, and 390px responsive layout.
+- Final pushed commits: `f84cc0d`, `bf4a39d`.
 
 ## Known blockers
 
@@ -43,5 +53,6 @@
 - Raw real NISAR products are local deployment inputs and are not fabricated
   or committed by the application.
 - Browser automation remains a manual/live validation step; the frontend
-  production build and integrated job/report controls are verified, but no
-  dedicated browser test runner is currently configured.
+  production build and integrated job/report controls are verified. Live
+  browser smoke checks were executed through the shared browser session, but
+  no dedicated browser test runner is configured in the repository.

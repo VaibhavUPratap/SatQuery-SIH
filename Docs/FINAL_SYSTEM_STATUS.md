@@ -254,3 +254,30 @@ events.
 The generalized job workflow now exposes `preprocessing` and uses windowed,
 tiled/overview-aware AOI outputs. The Bengaluru frontend also displays job
 progress, execution trace, and generated evidence-report download controls.
+
+### Temporal backscatter workspace release — 15 November 2026
+
+The existing Bengaluru view was upgraded in place and pushed to `origin/main`
+as commits `f84cc0d` and `bf4a39d`. The implementation preserves the existing
+processing, LangGraph, job, and report contracts.
+
+| UI phase | Status | Evidence |
+| --- | --- | --- |
+| 1. Audit and data contract | Complete | `Docs/TEMPORAL_BACKSCATTER_UI_AUDIT.md`; live catalog smoke test |
+| 2. Dashboard design | Complete | Map-first responsive workspace and scientific card hierarchy |
+| 3. Observation controls | Complete | Real granule IDs, dates, product, sensor, orbit, track, frame, CRS, resolution |
+| 4. Interactive map workspace | Complete | Leaflet overlays, visibility/opacity controls, AOI fit, coordinates, candidate selection |
+| 5. Temporal comparison | Complete | Swipe and synchronized side-by-side compact processed previews |
+| 6. Polarization analysis | Complete | HH/HV switching with channel-specific measurements and explanation |
+| 7. Statistics and charts | Complete | Catalog-served `temporal_statistics.csv` and `change_summary.json` values |
+| 8. Candidate explorer | Complete | Filter, sort, select, highlight, zoom, GeoJSON and CSV export |
+| 9. AI interpretation | Complete | Grounded observed/candidate/possible-explanation/verification sections |
+| 10. Processing transparency | Complete | Job status, stage model, execution trace, failure path |
+| 11. Reports and exports | Complete | Existing LangGraph PDF reuse; GeoTIFF absence stated explicitly |
+| 12. Performance and responsiveness | Complete | Server-side raw products, compact assets, bounded candidate table, 390px smoke check |
+| 13. Testing | Complete | 80 backend tests, frontend build, compile, API smoke, live browser checks |
+
+The browser smoke check also fixed a React cleanup warning in `FitBounds`.
+Candidate regions remain statistical radar-change indicators and are never
+presented as confirmed flooding, construction, urbanization, deforestation, or
+another physical event.

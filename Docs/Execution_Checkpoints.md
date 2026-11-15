@@ -1,6 +1,6 @@
 # SatQuery AI — Delivery Schedule and Checkpoints
 
-Last updated: 14 November 2026
+Last updated: 15 November 2026
 
 ## Delivery context
 
@@ -67,4 +67,42 @@ must be labelled as such.
   the case-study browser view continues to load compact previews and vector geometry.
 - Phase 10: generalized API, failure-path, external-evidence, LangGraph, report,
   full regression, and frontend build checks pass.
+
+## Interactive temporal backscatter workspace — phase-by-phase release
+
+The existing Bengaluru React/Leaflet page was enhanced without creating a
+duplicate processing path. The following phase gate is the authoritative
+progress record for the 13-phase UI request:
+
+1. **Audit:** complete; current component, API routes, processed assets, and
+   limitations documented in `Docs/TEMPORAL_BACKSCATTER_UI_AUDIT.md`.
+2. **Dashboard design:** complete; map-first dark scientific workspace with
+   responsive cards and preserved application theme.
+3. **Observation controls:** complete; catalog-driven pair metadata and HH/HV
+   controls, with no fabricated future observations.
+4. **Map workspace:** complete; real compact previews, difference preview,
+   candidate GeoJSON, AOI, layer toggles, opacity, coordinates, and fit control.
+5. **Temporal comparison:** complete; swipe slider and side-by-side views.
+6. **Polarization analysis:** complete; measured HH/HV KPIs and channel
+   explanation using only available product channels.
+7. **Statistics:** complete; backend serves actual temporal rows and change
+   summaries for the UI chart.
+8. **Candidate explorer:** complete; filtering, sorting, selection, highlight,
+   zoom, region properties, GeoJSON export, and CSV export.
+9. **AI interpretation:** complete; evidence and uncertainty are separated from
+   possible explanations and unavailable corroboration.
+10. **Processing transparency:** complete; asynchronous job status and trace
+    are represented without fake completion.
+11. **Reports/exports:** complete; existing PDF helper is reused and missing
+    difference GeoTIFFs are explicitly reported unavailable.
+12. **Performance/responsiveness:** complete; raw HDF5 stays server-side,
+    candidate rows are bounded for rendering, and a 390px browser check passed.
+13. **Testing:** complete; frontend build passed, Python compilation passed,
+    full backend suite passed (80 tests), catalog API smoke passed, and live
+    browser interactions passed. A React `useEffect` cleanup warning found
+    during smoke testing was fixed in `bf4a39d`.
+
+The two commits for this release are pushed to `origin/main`. Unrelated
+`.DS_Store`, generated report-output, and user-provided prompt files remain
+outside the release commit.
 

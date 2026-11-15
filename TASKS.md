@@ -28,6 +28,34 @@ Progress is updated phase-by-phase below. A phase is marked complete only when i
 - **Phase 10 — Testing:** baseline, failure-path, external-evidence, LangGraph, report, and focused NISAR tests pass.
 - **Phase 11 — Documentation:** final API, workflow, limitations, demo, plan, and implementation reports added.
 
+### Interactive Temporal Backscatter View — 13-phase completion
+
+- [x] **Phase 1 — Audit and data contract:** current React view, APIs, assets,
+  GeoJSON, statistics, and limitations documented.
+- [x] **Phase 2 — Dashboard design:** map-first scientific workspace and
+  responsive hierarchy added without replacing the existing application.
+- [x] **Phase 3 — Observation controls:** catalog-driven dates, IDs, metadata,
+  CRS, resolution, track, frame, orbit, and polarization controls.
+- [x] **Phase 4 — Interactive map:** real preview/difference/candidate/AOI
+  layers, visibility, opacity, coordinates, fit control, and selection.
+- [x] **Phase 5 — Temporal comparison:** swipe and side-by-side modes.
+- [x] **Phase 6 — Polarization analysis:** measured HH/HV statistics and
+  product-channel explanation.
+- [x] **Phase 7 — Statistics/charts:** actual temporal and change-summary data
+  served by the case-study endpoint.
+- [x] **Phase 8 — Candidate explorer:** table, filtering, sorting, selection,
+  highlight, zoom, GeoJSON export, and statistics CSV export.
+- [x] **Phase 9 — AI interpretation:** grounded evidence, possible causes,
+  required corroboration, and explicit uncertainty.
+- [x] **Phase 10 — Processing transparency:** asynchronous status, stage model,
+  trace, and failure messaging.
+- [x] **Phase 11 — Reports/exports:** existing PDF integration retained;
+  unavailable GeoTIFF exports are not fabricated.
+- [x] **Phase 12 — Performance/responsiveness:** raw products remain server-side,
+  compact assets are used, and mobile layout was smoke-tested.
+- [x] **Phase 13 — Testing:** 80 backend tests, frontend build, API smoke,
+  browser interaction checks, and React cleanup fix completed.
+
 ## Completed Milestones
 
 - [x] **Phase 0: Project Structure Setup**
