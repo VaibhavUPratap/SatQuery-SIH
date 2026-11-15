@@ -1,0 +1,7 @@
+{
+  "external_land_cover_data_loaded": false,
+  "urban_agriculture_vegetation_water_overlap_assessed": false,
+  "reason": "No verified Bengaluru-specific supporting dataset exists in the repository; unrelated raster footprints were excluded.",
+  "candidate_crs": "EPSG:32643",
+  "candidate_locations_are_wgs84_properties": true
+}

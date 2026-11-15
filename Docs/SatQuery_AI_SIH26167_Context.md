@@ -1768,3 +1768,35 @@ Separate:
 - **measured evaluation results**
 
 This distinction is especially important during the SIH viva.
+
+---
+
+# 39. Verified NISAR Bengaluru Case Study Status
+
+The project now contains a verified four-phase NISAR L2 GCOV case study for
+Bengaluru:
+
+- **Phase 1:** Two real NISAR L2 GCOV HDF5 products were verified, including
+  HHHH/HVHV paths, metadata, EPSG:32643 frequency-A grid, and quality masks.
+- **Phase 2:** HH/HV linear gamma-zero measurements and source masks were
+  extracted to a reproducible 10 m Bengaluru AOI window (`3920 × 4382`).
+- **Phase 3:** Full-AOI temporal statistics, gamma-zero dB conversions,
+  difference/ratio products, and robust spatially coherent candidate masks were
+  generated for 2026-10-29 versus 2026-11-10.
+- **Phase 4:** Candidate masks were polygonized in EPSG:32643, areas and WGS84
+  centroids were calculated, and geospatial interpretation maps were produced.
+
+The case-study reports are:
+
+- `Docs/NISAR_HDF5_VALIDATION_REPORT.md`
+- `Docs/NISAR_BENGALURU_EXTRACTION_REPORT.md`
+- `Docs/NISAR_TEMPORAL_CHANGE_ANALYSIS_REPORT.md`
+- `Docs/NISAR_ENVIRONMENTAL_INTERPRETATION_REPORT.md`
+
+The environmental interpretation remains deliberately limited: no
+Bengaluru-specific external land-cover, optical, rainfall, soil-moisture,
+water-body, or OpenStreetMap layer was downloaded and verified. Candidate
+regions are measured radar anomalies and hypotheses, not confirmed
+deforestation, flooding, agriculture, or construction events. Large HDF5 and
+derived GeoTIFF files remain local and are excluded from Git; scripts,
+reports, metadata, summaries, GeoJSON, and visual outputs are versioned.

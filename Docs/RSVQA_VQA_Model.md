@@ -1,8 +1,8 @@
 # RSVQA BLIP LoRA VQA Model Pipeline
 
-**Status:** Model path verified; adapter quality under active remediation  
-**Architecture:** `Salesforce/blip-vqa-base` + PEFT LoRA Adapter (`checkpoints/rsvqa-blip-lora`)  
-**Modality:** Optical Remote Sensing RGB Imagery  
+**Status:** Model path verified; adapter quality under active remediation
+**Architecture:** `Salesforce/blip-vqa-base` + PEFT LoRA Adapter (`checkpoints/rsvqa-blip-lora`)
+**Modality:** Optical Remote Sensing RGB Imagery
 
 ---
 

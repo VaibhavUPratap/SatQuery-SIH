@@ -1,12 +1,12 @@
 # SatQuery AI
 ## Complete Project Implementation and Delivery Record
 
-**Problem statement:** SIH26167  
-**Organization:** Indian Space Research Organisation (ISRO)  
-**Theme:** Space Technology  
-**Category:** Software  
+**Problem statement:** SIH26167
+**Organization:** Indian Space Research Organisation (ISRO)
+**Theme:** Space Technology
+**Category:** Software
 **Document status:** Current repository record as of 4 September 2026
-**Repository branch:** `main`  
+**Repository branch:** `main`
 **Current revision:** `6a3c215` (`Refactor main.jsx: Simplify imports and remove unused components; streamline App component structure`)
 
 ---

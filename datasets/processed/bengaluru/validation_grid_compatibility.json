@@ -1,0 +1,13 @@
+{
+  "grid_compatible": true,
+  "details": {
+    "HH_20261029": true,
+    "HV_20261029": true,
+    "HH_20261110": true,
+    "HV_20261110": true,
+    "quality_20261029": true,
+    "quality_20261110": true,
+    "exception_20261029": true,
+    "exception_20261110": true
+  }
+}

@@ -1,0 +1,138 @@
+# NISAR Bengaluru AOI Extraction Report
+
+## 1. Objective
+
+This Phase 2 workflow extracts the actual HH and HV diagonal covariance
+measurements from two NISAR L2 GCOV frequency-A grids and writes the
+Bengaluru study-area subset as georeferenced GeoTIFFs. No change detection,
+filtering, normalization, resampling, or machine-learning processing was
+performed.
+
+## 2. Input datasets
+
+| Date | Product | Track/frame | Pass | Source |
+|---|---|---|---|---|
+| 2026-10-29 | NISAR L2 GCOV | 77/82 | Descending | `datasets/raw/NISAR_L2_PR_GCOV_034_077_D_082_4005_DHDH_A_20261029T131919_20261029T131954_P05036_N_F_J_001.h5` |
+| 2026-11-10 | NISAR L2 GCOV | 77/82 | Descending | `datasets/raw/NISAR_L2_PR_GCOV_035_077_D_082_4005_DHDH_A_20261110T131920_20261110T131954_P05036_N_F_J_001.h5` |
+
+Both products use the same verified internal paths:
+
+- Measurements: `/science/LSAR/GCOV/grids/frequencyA/HHHH` and
+  `/science/LSAR/GCOV/grids/frequencyA/HVHV`
+- Quality mask: `/science/LSAR/GCOV/grids/frequencyA/mask`
+- Exception mask: `/science/LSAR/GCOV/grids/frequencyA/inputDataExceptionMask`
+- Projection: `/science/LSAR/GCOV/grids/frequencyA/projection`
+- Geolocation: `/science/LSAR/GCOV/grids/frequencyA/xCoordinates`,
+  `yCoordinates`, `xCoordinateSpacing`, and `yCoordinateSpacing`
+
+The measurement datasets are `float32`, have HDF5 fill value `NaN`, and are
+documented as unitless linear gamma-zero power. The quality mask is `uint8`
+with fill value `255`; its AOI values are `1`. The exception mask is `uint16`
+with fill value `65535`; its AOI values are `768` (HH and HV validity bits).
+The projection attributes verify EPSG:32643.
+
+## 3. AOI and extraction procedure
+
+The requested WGS84 AOI is west `77.40`, east `77.80`, south `12.80`, north
+`13.15`. The script [05_extract_bengaluru_aoi.py](/Users/deepika/Documents/SIH/SatQuery-SIH/scripts/nisar/05_extract_bengaluru_aoi.py)
+projects all AOI corners to EPSG:32643, checks the HDF5 coordinate axes and
+declared spacing, and computes an enclosing pixel-edge window. It does not
+use the previously suggested indices as authoritative.
+
+Verified calculated window for both observations:
+
+- Rows: `13146:17066`
+- Columns: `13593:17975`
+- Dimensions: `3920 × 4382`
+- Pixels per raster: `17,177,440`
+- Pixel size: `10 m × 10 m`
+- Affine transform: `| 10, 0, 760170 | 0,-10,1455420 |`
+- Extracted bounds: `[760170, 1416220, 803990, 1455420]` in EPSG:32643
+
+The extracted measurement arrays preserve source float32 values, including
+source NaNs. Invalid measurements are not replaced with zeros or other
+arbitrary values. Masks are exported separately and are used by validation to
+classify pixels.
+
+## 4. Output inventory
+
+Measurements:
+
+- `datasets/processed/bengaluru/nisar_hh_20261029.tif`
+- `datasets/processed/bengaluru/nisar_hv_20261029.tif`
+- `datasets/processed/bengaluru/nisar_hh_20261110.tif`
+- `datasets/processed/bengaluru/nisar_hv_20261110.tif`
+
+Masks:
+
+- `datasets/processed/bengaluru/masks/quality_mask_20261029.tif`
+- `datasets/processed/bengaluru/masks/quality_mask_20261110.tif`
+- `datasets/processed/bengaluru/masks/exception_mask_20261029.tif`
+- `datasets/processed/bengaluru/masks/exception_mask_20261110.tif`
+
+All measurement rasters are GeoTIFF `float32`, EPSG:32643, and use NaN
+NoData. Quality rasters are `uint8` with NoData `255`; exception rasters are
+`uint16` with NoData `65535`. Acquisition and measurement metadata are stored
+as GeoTIFF tags.
+
+## 5. Full-raster validation results
+
+Validation was executed with
+[07_validate_extracted_geotiffs.py](/Users/deepika/Documents/SIH/SatQuery-SIH/scripts/nisar/07_validate_extracted_geotiffs.py).
+The statistics below are computed over every extracted pixel, not samples.
+
+| Date | Polarization | Valid % | Min | Max | Mean | Std. dev. |
+|---|---|---:|---:|---:|---:|---:|
+| 2026-10-29 | HH | 100.000000 | 0.001957 | 37897.000000 | 1.156246 | 23.251550 |
+| 2026-10-29 | HV | 100.000000 | 0.000404 | 1481.375000 | 0.060317 | 0.768831 |
+| 2026-11-10 | HH | 100.000000 | 0.002466 | 33125.500000 | 1.182549 | 23.998211 |
+| 2026-11-10 | HV | 100.000000 | 0.000424 | 1142.359375 | 0.060854 | 0.763225 |
+
+For both dates, the quality mask contains only value `1` throughout the
+17,177,440-pixel AOI, and the exception mask contains only value `768`.
+Therefore the measured AOI valid-pixel percentage is 100% under the verified
+mask definitions; this statement is limited to this extracted AOI and does
+not describe the full scene.
+
+The machine-readable results are in
+`datasets/processed/bengaluru/validation_summary.csv`, with grid checks in
+`datasets/processed/bengaluru/validation_grid_compatibility.json`.
+
+## 6. Grid alignment
+
+All four measurement rasters and all four mask rasters have identical:
+
+- CRS: EPSG:32643
+- Dimensions: `3920 × 4382`
+- Resolution: `10, -10` metres
+- Affine transform and bounds
+
+The October and November grids are therefore directly compatible. No
+resampling was performed.
+
+## 7. Previews
+
+Display-only PNG previews were generated by
+[06_generate_previews.py](/Users/deepika/Documents/SIH/SatQuery-SIH/scripts/nisar/06_generate_previews.py)
+under `datasets/processed/bengaluru/previews/`. HH uses a consistent `-20` to
+`10 dB` display range across both dates; HV uses `-28` to `-4 dB`. The
+linear-power GeoTIFF values are not modified by preview generation.
+
+## 8. Errors and limitations
+
+- The input validation report is stored under `Docs/` in this repository; the
+  HDF5 structure files and inventory were independently checked before
+  extraction.
+- The computed enclosing window differs from the previously documented
+  approximate slice because the actual projected AOI and pixel-edge
+  convention were used.
+- “Valid” is the documented AOI mask classification and does not imply
+  independent ground-truth radiometric accuracy.
+- No temporal comparison or change-detection product was generated.
+
+## 9. Final validation status
+
+**PASSED.** Both real HDF5 products were read successfully, the four
+measurement GeoTIFFs and four mask GeoTIFFs were generated, previews were
+generated, full-raster statistics were calculated, and all output grids were
+verified compatible.

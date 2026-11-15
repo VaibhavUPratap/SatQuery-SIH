@@ -1,7 +1,7 @@
 # SatQuery AI — Final System Status & SIH Demo Dossier
 
 ## SYSTEM STATUS
-**STATUS: SIH DEMO READY; NISAR/TERRAPULSE EXPANSION IN PROGRESS**
+**STATUS: SIH DEMO READY; VERIFIED NISAR BENGALURU CASE STUDY COMPLETE**
 
 *The SatQuery AI prototype has undergone regression testing, dashboard integration, backend pipeline hardening, security isolation, and benchmark evaluation. The project is now being extended into the TerraPulse AI NISAR-focused platform. Existing SatQuery capabilities are suitable for SIH demonstration; the NISAR-focused challenge claim remains conditional on successful real-product acquisition and end-to-end validation.*
 
@@ -191,16 +191,23 @@ been verified; these results are not an independent scientific validation.
 - Dedicated NISAR API routes for search, validation, preview, and controlled demo synthesis.
 - Initial TerraPulse frontend and agent integration points.
 
-### Not yet proven
+### Verified real-NISAR case study
 
-The repository does not yet establish a complete, verified real-NISAR case
-study. Curated catalog entries, synthetic HDF5 products, and offline fallback
-paths are useful for development and testing but are not evidence of real
-mission observations.
+The repository now includes two verified real NISAR L2 GCOV observations for
+Bengaluru (2026-10-29 and 2026-11-10, track 77/frame 82, descending). The
+four-phase processing record includes:
 
-### Required next milestone
+1. HDF5 structure, measurement paths, mask definitions, CRS, and product
+   metadata validation.
+2. Windowed HH/HV frequency-A extraction to float32 linear gamma-zero GeoTIFFs
+   with source quality and exception masks.
+3. Full-AOI temporal statistics, dB differences, ratios, percentage changes,
+   and robust spatially coherent candidate masks.
+4. EPSG:32643 candidate polygonization, area/centroid statistics, maps, and
+   environmental interpretation documentation.
 
-Acquire two real NISAR observations for one study area, verify their official
-metadata, process them through the NISAR change/flood pipeline, display the
-results in the frontend, and export a report that preserves the source
-identifiers, dates, processing settings, uncertainty, and limitations.
+The complete reports are stored in `Docs/NISAR_*_REPORT.md`. The case study
+does not claim a confirmed environmental event: no contemporaneous external
+land-cover, optical, rainfall, soil-moisture, water-body, or OSM dataset was
+downloaded and verified. Large HDF5 and derived GeoTIFF files remain local and
+are excluded from Git; reproducible scripts and compact outputs are tracked.

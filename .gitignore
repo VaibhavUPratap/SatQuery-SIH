@@ -7,3 +7,12 @@ frontend/node_modules/
 frontend/dist/
 .ipynb_checkpoints/
 .venv-gpu/
+*.h5
+*.hdf5
+
+# Large NISAR source and derived rasters are kept locally, not in Git.
+datasets/processed/bengaluru/nisar_*.tif
+datasets/processed/bengaluru/change_analysis/*_db.tif
+datasets/processed/bengaluru/change_analysis/*_change_ratio.tif
+datasets/processed/bengaluru/change_analysis/*_difference_db.tif
+datasets/processed/bengaluru/change_analysis/*_percentage_change.tif

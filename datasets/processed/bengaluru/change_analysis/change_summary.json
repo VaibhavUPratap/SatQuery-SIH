@@ -1,0 +1,36 @@
+[
+  {
+    "polarization": "HH",
+    "common_valid_pixel_count": 17177440,
+    "common_invalid_pixel_count": 0,
+    "common_valid_percentage": 100.0,
+    "difference_db_median": 0.06641387939453125,
+    "difference_db_mad": 1.7334012985229492,
+    "difference_db_scaled_mad": 2.5699407651901245,
+    "distribution_p2_5_db": -5.255251407623291,
+    "distribution_p97_5_db": 5.415230345726014,
+    "robust_threshold_db": 7.7098222955703735,
+    "distribution_tail_count_db": 858871,
+    "potential_change_pixel_count": 5741,
+    "potential_change_percentage_of_common": 0.033421743868702204,
+    "potential_decrease_pixels": 2163,
+    "potential_increase_pixels": 3578
+  },
+  {
+    "polarization": "HV",
+    "common_valid_pixel_count": 17177440,
+    "common_invalid_pixel_count": 0,
+    "common_valid_percentage": 100.0,
+    "difference_db_median": 0.02154541015625,
+    "difference_db_mad": 1.7772159576416016,
+    "difference_db_scaled_mad": 2.6349003787994385,
+    "distribution_p2_5_db": -5.3761636972427365,
+    "distribution_p97_5_db": 5.427486562728884,
+    "robust_threshold_db": 7.904701136398316,
+    "distribution_tail_count_db": 858872,
+    "potential_change_pixel_count": 3762,
+    "potential_change_percentage_of_common": 0.021900818748311738,
+    "potential_decrease_pixels": 1949,
+    "potential_increase_pixels": 1813
+  }
+]
