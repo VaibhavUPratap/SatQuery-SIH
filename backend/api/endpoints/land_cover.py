@@ -15,8 +15,8 @@ router = APIRouter()
 
 
 @router.post("/land-cover", status_code=status.HTTP_200_OK)
-async def classify_land_cover(file: UploadFile = File(..., description="14-band Sentinel-1/Sentinel-2 GeoTIFF")):
-    """Classify a reBEN-compatible Sentinel-1/Sentinel-2 image chip."""
+async def classify_land_cover(file: UploadFile = File(..., description="12-band Sentinel-2 GeoTIFF")):
+    """Classify a reBEN-compatible 12-band Sentinel-2 image chip."""
     path = None
     try:
         path, _ = await persist_upload(file, "land_cover")

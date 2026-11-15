@@ -167,7 +167,7 @@ class SatQueryPDFReport(FPDF):
         self.set_xy(MARGIN_LR, 3.5)
         self.set_font("Helvetica", "B", 10.5)
         self.set_text_color(*C_WHITE)
-        self.cell(75, 6.5, "SatQuery AI", border=0)
+        self.cell(75, 6.5, "TerraPulse AI", border=0)
         self.set_font("Helvetica", "", 8.5)
         self.set_text_color(190, 210, 240)
         self.cell(0, 6.5, clean_text(self._page_label), align="R", border=0)
@@ -181,7 +181,7 @@ class SatQueryPDFReport(FPDF):
         self.ln(1.0)
         self.set_font("Helvetica", "", 7.5)
         self.set_text_color(*C_MUTED)
-        self.cell(USABLE_W / 2, 5.0, "Remote Sensing Analysis Report  |  SatQuery AI Intelligence Dossier", border=0)
+        self.cell(USABLE_W / 2, 5.0, "Remote Sensing Analysis Report  |  TerraPulse AI Intelligence Dossier", border=0)
         self.cell(USABLE_W / 2, 5.0, f"Page {self.page_no()} of 6", align="R", border=0)
 
     def _page_heading(self, section_num: str, title: str, subtitle: str = "") -> None:
@@ -221,7 +221,7 @@ class SatQueryPDFReport(FPDF):
         self.set_xy(MARGIN_LR + 5.0, 26.5)
         self.set_font("Helvetica", "", 8.5)
         self.set_text_color(200, 220, 245)
-        meta_line = f"SatQuery AI Intelligence Engine   *   Generated: {ctx['generated_at']}   *   Status: {ctx['status'].upper()}"
+        meta_line = f"TerraPulse AI Intelligence Engine   *   Generated: {ctx['generated_at']}   *   Status: {ctx['status'].upper()}"
         self.cell(USABLE_W - 10, 4.5, clean_text(meta_line), border=0)
 
         self.set_y(16.0 + hero_h + 3.5)
@@ -546,6 +546,8 @@ class SatQueryPDFReport(FPDF):
             "change": "Bi-temporal Difference Map Overlay (Blended with T2 Image)",
             "optical_sar": "Optical-SAR Multi-Modal Fusion Map (Blue: Water, Red: Built-up)",
             "land_cover": "Multispectral Sentinel-2 Composite & Classification Map",
+            "nisar_change": "NISAR Candidate Backscatter Difference Map",
+            "nisar_flood": "NISAR Candidate Surface-Water Evidence Map",
         }
         cap = overlay_captions.get(ctx["task_name"], "Remote Sensing Spatial Evidence Overlay")
 
@@ -568,30 +570,39 @@ class SatQueryPDFReport(FPDF):
         if ctx["bboxes"] or ctx["task_name"] in ("grounding", "optical_sar"):
             section_title(self, "Detected Regions & Bounding Box Coordinates", top_gap=2.0)
             boxes = ctx["bboxes"]
-            if not boxes and ctx["task_name"] == "optical_sar":
-                # Provide contextual bounding boxes if fusion generated regions
-                boxes = [
-                    {"label": "Water Retention Zone", "coordinates": [40, 60, 140, 160]},
-                    {"label": "Built-up Infrastructure", "coordinates": [120, 180, 190, 240]},
-                ]
-            elif not boxes and ctx["task_name"] == "grounding":
-                boxes = [{"label": "Target Region", "coordinates": [50, 50, 200, 200]}]
-            bounding_box_table(self, boxes)
+            if not boxes:
+                callout_card(self, "Region Geometry", "No region coordinates were returned by the specialist.", min_h=12.0)
+            else:
+                bounding_box_table(self, boxes)
 
         elif ctx["task_name"] == "change":
             section_title(self, "Change Magnitude & Distribution", top_gap=2.0)
-            c_pct = (ctx["change_ratio"] or 0.142) * 100.0
-            draw_confidence_bar(
-                self,
-                c_pct / 100.0,
-                label=f"Surface modification ratio ({c_pct:.1f}% of total scene area modified)",
-                bar_w=95.0,
-            )
+            if ctx["change_ratio"] is None:
+                callout_card(self, "Change Ratio", "The specialist did not return a change ratio.", min_h=12.0)
+            else:
+                c_pct = ctx["change_ratio"] * 100.0
+                draw_confidence_bar(
+                    self,
+                    c_pct / 100.0,
+                    label=f"Surface modification ratio ({c_pct:.1f}% of total scene area modified)",
+                    bar_w=95.0,
+                )
             kv_table(self, [
-                ("Change Detection Threshold", "30 DN (Digital Number Difference) with Gaussian Smoothing"),
-                ("Morphological Cleanup", "Kernel 3x3 Opening & Closing applied for noise suppression"),
-                ("Benchmark IoU", "0.6589 Pixel IoU on Held-Out Change Dataset"),
+                ("Change Detection Threshold", "Specialist-emitted threshold"),
+                ("Reference metric", "Only included when independently supplied by the analysis"),
             ], row_h=5.4)
+
+        elif ctx["task_name"] in ("nisar_change", "nisar_flood"):
+            section_title(self, "NISAR Candidate Evidence", top_gap=2.0)
+            evidence = ctx["evidence"]
+            limitations = evidence.get("limitations") if isinstance(evidence, dict) else None
+            rows = [
+                ("Interpretation status", "Candidate radar-backscatter anomaly; not a confirmed event"),
+                ("Independent corroboration", "Unavailable in the verified repository"),
+            ]
+            if limitations:
+                rows.append(("Primary limitation", str(limitations[0])))
+            kv_table(self, rows, row_h=5.4)
 
         else:
             section_title(self, "Evidence Summary Metrics", top_gap=2.0)

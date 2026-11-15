@@ -331,7 +331,7 @@ export default function App() {
       <header className="topbar">
         <a className="brand" href="#top">
           <span className="brand-mark">SQ</span>
-          <span>SatQuery <em>AI</em></span>
+          <span>TerraPulse <em>AI</em></span>
         </a>
         <span className="system-status"><i /> Remote sensing intelligence platform</span>
         {stage !== 'LOGIN' && (
@@ -346,7 +346,7 @@ export default function App() {
       {!showNisarCaseStudy && stage === 'LOGIN' && (
         <Page eyebrow="SATQUERY AI / WORKSPACE" title="Remote sensing intelligence platform">
           <form className="login-panel" onSubmit={authenticate}>
-            <p>Access the SatQuery analysis workspace.</p>
+            <p>Access the TerraPulse analysis workspace.</p>
             <label>Username / Analyst ID
               <input required value={credentials.username} onChange={(e) => setCredentials({ ...credentials, username: e.target.value })} placeholder="analyst.demo" />
             </label>
@@ -486,7 +486,7 @@ export default function App() {
       {!showNisarCaseStudy && stage === 'REPORT' && (
         <Page eyebrow="05 / REPORT" title="Evidence report" onBack={() => setStage('ANALYSIS')}>
           <div className="report-sheet">
-            <span className="eyebrow">SatQuery AI / analysis record</span>
+            <span className="eyebrow">TerraPulse AI / analysis record</span>
             <Metric label="Query" value={query} />
             <Metric label="Task" value={route.task} />
             <Metric label="Confidence" value={result?.confidence ? `${Math.round(result.confidence * 100)}%` : '--'} />
@@ -500,7 +500,7 @@ export default function App() {
         </Page>
       )}
 
-      <footer>SatQuery AI / Earth observation toolkit <span>Results are advisory and should be reviewed by an analyst.</span></footer>
+      <footer>TerraPulse AI / Earth observation toolkit <span>Results are advisory and should be reviewed by an analyst.</span></footer>
     </div>
   );
 }

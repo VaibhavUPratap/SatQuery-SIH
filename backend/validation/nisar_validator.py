@@ -124,6 +124,17 @@ class NISARValidator:
                 "Co-registration / re-gridding required before temporal change detection."
             ), pair_meta
 
+        if meta1.get("crs") and meta2.get("crs") and meta1["crs"] != meta2["crs"]:
+            return False, f"NISAR CRS mismatch: T1 is {meta1['crs']}, T2 is {meta2['crs']}.", pair_meta
+
+        spacing1 = meta1.get("pixel_spacing_meters") or []
+        spacing2 = meta2.get("pixel_spacing_meters") or []
+        if spacing1 and spacing2 and not np.allclose(spacing1, spacing2, rtol=0, atol=1e-6):
+            return False, (
+                f"NISAR pixel spacing mismatch: T1 is {spacing1}, T2 is {spacing2}. "
+                "Common-grid resampling is required before temporal change detection."
+            ), pair_meta
+
         # Calculate bounding box intersection
         b1, b2 = meta1.get("bounds"), meta2.get("bounds")
         if b1 and b2:

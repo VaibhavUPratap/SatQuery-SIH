@@ -28,12 +28,14 @@ checkpoint from Hugging Face unless its standard cache is already populated.
 ## Input contract
 
 This is not an RGB scene classifier. Submit a co-registered, finite-valued,
-14-band GeoTIFF in the band order and preprocessing expected by BigEarthNet
-v2.0: `VV`, `VH`, then `B01`–`B12` in ESA order. The API applies ConfigILM's
-published stack/interpolation and normalization. The API rejects RGB,
-3-band visualizations, and rasters with another band count. It returns all 19
-class probabilities and the labels meeting `BIGEARTHNET_THRESHOLD` (default
-`0.5`). Configure the model ID, expected band count, and threshold with the
+12-band Sentinel-2 GeoTIFF in the ESA order `B01`, `B02`, `B03`, `B04`, `B05`,
+`B06`, `B07`, `B08`, `B8A`, `B09`, `B11`, `B12`. The published ConvMixer
+checkpoint configuration and `backend/models/land_cover/model.py` both use
+12 Sentinel-2 channels; a combined 14-band `VV`, `VH`, `B01`–`B12` contract is
+not implemented. The API rejects RGB, 3-band visualizations, and rasters with
+another band count. It returns all 19 class probabilities and the labels
+meeting `BIGEARTHNET_THRESHOLD` (default `0.5`). Configure the model ID,
+expected band count, and threshold with the
 `BIGEARTHNET_MODEL_ID`, `BIGEARTHNET_EXPECTED_BANDS`, and
 `BIGEARTHNET_THRESHOLD` environment variables.
 

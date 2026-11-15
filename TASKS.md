@@ -1,4 +1,31 @@
-# Master Task List — SatQuery AI
+# Master Task List — TerraPulse AI
+
+## Current Progress Snapshot
+
+**Overall status: COMPLETE — Phases 0–9 implemented and integrated.**
+
+Last verification:
+
+- Backend regression suite: **75 passed**.
+- Frontend production build: **successful** with `npm --prefix frontend run build`.
+- FastAPI health smoke test: **200 OK** (`TerraPulse AI API`).
+- Scientific limitation retained: NISAR outputs are candidate radar-backscatter anomalies, not independently confirmed environmental events.
+
+Progress is updated phase-by-phase below. A phase is marked complete only when its implementation and focused verification are present in the repository.
+
+### TerraPulse implementation progress
+
+- **Phase 1 — Audit:** complete; see `Docs/FINAL_IMPLEMENTATION_PLAN.md`.
+- **Phase 2 — Real NISAR processing API:** complete and covered by focused API tests.
+- **Phase 3 — NISAR jobs:** complete with owned status, results, trace, progress, and failure handling.
+- **Phase 4 — LangGraph:** complete foundation; validated processing results enter the existing typed graph.
+- **Phase 5 — Corroboration:** limitation-aware source metadata added; external data remains unverified.
+- **Phase 6 — Scientific validation:** complete for the verified Bengaluru HH/HV case study.
+- **Phase 7 — Reports:** NISAR report branding and candidate-evidence limitations integrated.
+- **Phase 8 — Frontend:** verified Bengaluru case-study UI remains operational; generalized job controls are API-first.
+- **Phase 9 — Raster performance:** AOI window reads and compact browser assets are in use.
+- **Phase 10 — Testing:** baseline and focused NISAR tests pass; full release checks are recorded in the final report.
+- **Phase 11 — Documentation:** final API, workflow, limitations, demo, plan, and implementation reports added.
 
 ## Completed Milestones
 

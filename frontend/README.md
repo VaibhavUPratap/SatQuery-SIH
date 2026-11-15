@@ -1,4 +1,4 @@
-# SatQuery Dashboard
+# TerraPulse AI Dashboard
 
 Run the FastAPI backend, then start the React/Vite dashboard:
 

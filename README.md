@@ -83,10 +83,29 @@ The interactive API documentation will be available at [http://127.0.0.1:8000/do
 - `POST /api/v1/grounding` — text-guided bounding-box grounding.
 - `POST /api/v1/change` — paired T1/T2 change map plus a question-grounded answer.
 - `POST /api/v1/optical-sar` — co-registered optical/SAR fusion for water and built-up evidence.
-- `POST /api/v1/land-cover` — BigEarthNet v2.0 multi-label land-cover classification for 14-band Sentinel-1/Sentinel-2 GeoTIFF chips.
+- `POST /api/v1/land-cover` — BigEarthNet v2.0 multi-label land-cover classification for 12-band Sentinel-2 GeoTIFF chips.
+- `POST /api/v1/nisar/process` — queue validated processing for two locally available real NISAR GCOV observations.
+- `GET /api/v1/nisar/jobs/{job_id}` — read owned NISAR processing status and progress.
+- `GET /api/v1/nisar/jobs/{job_id}/results` — read completed NISAR processing results.
+- `GET /api/v1/nisar/jobs/{job_id}/trace` — read the NISAR execution trace.
 
 By default, VQA uses the local RSVQA LoRA adapter on `Salesforce/blip-vqa-base`.
 The base BLIP weights must be cached locally when `VQA_LOCAL_FILES_ONLY=true`
 (the default). Set `VQA_USE_FALLBACK=true` for deterministic pixel-analysis
 fallback answers; every response exposes whether inference used `model` or
 `fallback` mode.
+
+The BigEarthNet checkpoint currently supports **12-band Sentinel-2** GeoTIFF
+chips in the order `B01, B02, B03, B04, B05, B06, B07, B08, B8A, B09, B11,
+B12`. The older 14-band Sentinel-1/Sentinel-2 wording is not an implemented
+input contract.
+
+### Real NISAR processing
+
+`POST /api/v1/nisar/process` accepts observation identifiers that resolve to
+existing local HDF5 products under `datasets/` (or `NISAR_DATA_ROOT`) and
+validated GeoTIFF extracts. It does not download or synthesize products.
+The response is a job ID; poll the status, results, and trace endpoints.
+NISAR candidate anomalies must not be described as independently confirmed
+flooding, construction, urbanization, deforestation, or another environmental
+event.

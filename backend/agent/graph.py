@@ -294,6 +294,28 @@ def execute_land_cover_node(state: AgentState) -> Dict[str, Any]:
 
 def execute_nisar_change_node(state: AgentState) -> Dict[str, Any]:
     """Node: executes NISARChangeDetectionModel."""
+    preprocessed = state.get("nisar_processing_result")
+    if preprocessed:
+        trace: List[Dict[str, Any]] = list(state.get("execution_trace") or [])
+        return {
+            "task_result": {
+                "answer": preprocessed.get("answer"),
+                "confidence": preprocessed.get("confidence"),
+                "overlay_b64": preprocessed.get("overlay_b64"),
+                "change_summary": preprocessed.get("change_summary"),
+                "flood_summary": preprocessed.get("flood_summary"),
+                "changed_pixels": preprocessed.get("changed_pixels"),
+                "changed_area_hectares": preprocessed.get("changed_area_hectares"),
+                "evidence": preprocessed.get("evidence"),
+                "nisar_processing": preprocessed,
+            },
+            "execution_trace": trace + [{
+                "node": "execute_nisar_change",
+                "status": "passed",
+                "model": "NISARProcessingService",
+                "source": "validated_processing_result",
+            }],
+        }
     tool = tool_registry.get_tool("nisar_change")
     trace: List[Dict[str, Any]] = list(state.get("execution_trace") or [])
     if not tool:
@@ -317,6 +339,28 @@ def execute_nisar_change_node(state: AgentState) -> Dict[str, Any]:
 
 def execute_nisar_flood_node(state: AgentState) -> Dict[str, Any]:
     """Node: executes NISARFloodInundationModel."""
+    preprocessed = state.get("nisar_processing_result")
+    if preprocessed:
+        trace: List[Dict[str, Any]] = list(state.get("execution_trace") or [])
+        return {
+            "task_result": {
+                "answer": preprocessed.get("answer"),
+                "confidence": preprocessed.get("confidence"),
+                "overlay_b64": preprocessed.get("overlay_b64"),
+                "change_summary": preprocessed.get("change_summary"),
+                "flood_summary": preprocessed.get("flood_summary"),
+                "changed_pixels": preprocessed.get("changed_pixels"),
+                "changed_area_hectares": preprocessed.get("changed_area_hectares"),
+                "evidence": preprocessed.get("evidence"),
+                "nisar_processing": preprocessed,
+            },
+            "execution_trace": trace + [{
+                "node": "execute_nisar_flood",
+                "status": "passed",
+                "model": "NISARProcessingService",
+                "source": "validated_processing_result",
+            }],
+        }
     tool = tool_registry.get_tool("nisar_flood")
     trace: List[Dict[str, Any]] = list(state.get("execution_trace") or [])
     if not tool:
@@ -420,7 +464,12 @@ def fuse_evidence_node(state: AgentState) -> Dict[str, Any]:
             final_payload["overlay_b64"] = final_payload["annotated_image_b64"]
 
     if state.get("include_report"):
-        final_payload["report_pdf_b64"] = generate_pdf_report("SatQuery AI Evidence Report", final_payload)
+        report_title = (
+            "TerraPulse AI NISAR Evidence Report"
+            if task_name in {"nisar_change", "nisar_flood"}
+            else "SatQuery AI Evidence Report"
+        )
+        final_payload["report_pdf_b64"] = generate_pdf_report(report_title, final_payload)
 
     return {"final_output": final_payload}
 

@@ -234,3 +234,16 @@ granule IDs, sensor/frequency metadata, observation-date previews, candidate
 legend/opacity controls, processing history, and limitations. The module is
 ready for a qualified hackathon demonstration; candidate regions remain
 statistical indicators rather than confirmed environmental events.
+
+### Generalized processing and job integration
+
+The TerraPulse backend now exposes `POST /api/v1/nisar/process` plus owned
+status, results, and trace endpoints. The workflow resolves only existing
+local HDF5 products or validated GeoTIFF extracts, checks product
+compatibility and requested HH/HV channels, supports WGS84 AOI window
+extraction, and passes validated results through the existing typed LangGraph
+workflow.
+
+External optical, rainfall, soil-moisture, land-cover, and OSM sources are
+represented as unavailable until independently downloaded and checked. NISAR
+candidate anomalies must not be presented as confirmed environmental events.

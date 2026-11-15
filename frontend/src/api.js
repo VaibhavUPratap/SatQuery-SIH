@@ -66,6 +66,46 @@ export async function synthesizeNisarDemo({ targetDate = '2026-07-20', withFlood
   return payload;
 }
 
+export async function queueNisarProcessing({ observation1, observation2, polarizations = ['HH', 'HV'], analysisType = 'change', aoiBbox, parameters = {}, token }) {
+  const response = await fetch(`${API}/nisar/process`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({
+      observation_1: observation1,
+      observation_2: observation2,
+      product_type: 'GCOV',
+      polarizations,
+      analysis_type: analysisType,
+      aoi_bbox: aoiBbox,
+      parameters,
+    }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.detail || 'Failed to queue NISAR processing.');
+  return payload;
+}
+
+export async function getNisarJob(jobId, token) {
+  const response = await fetch(`${API}/nisar/jobs/${jobId}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.detail || 'Failed to read NISAR job status.');
+  return payload;
+}
+
+export async function getNisarJobResults(jobId, token) {
+  const response = await fetch(`${API}/nisar/jobs/${jobId}/results`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.detail || 'NISAR job results are not available.');
+  return payload;
+}
+
 export async function runAgent({ primary, comparison, query, analysisType = 'auto', threadId, token }) {
   const body = new FormData();
   body.append('file_1', primary);

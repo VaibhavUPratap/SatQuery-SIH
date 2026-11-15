@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { GeoJSON, MapContainer, TileLayer, Rectangle, useMap } from 'react-leaflet';
-import { API_BASE_URL, getBengaluruCaseStudy } from '../api';
+import { API_BASE_URL, getBengaluruCaseStudy, getNisarJob, getNisarJobResults, queueNisarProcessing } from '../api';
 
 function FitBounds({ bounds }) {
   const map = useMap();
@@ -21,6 +21,9 @@ export default function NisarBengaluruView({ onBack }) {
   const [opacity, setOpacity] = useState(0.45);
   const [candidateGeojson, setCandidateGeojson] = useState(null);
   const [error, setError] = useState('');
+  const [processing, setProcessing] = useState(false);
+  const [jobStatus, setJobStatus] = useState(null);
+  const [jobResult, setJobResult] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -54,6 +57,34 @@ export default function NisarBengaluruView({ onBack }) {
   const candidates = polarization === 'HH'
     ? catalog?.assets?.hh_candidates_wgs84
     : catalog?.assets?.hv_candidates_wgs84;
+
+  async function runProcessing() {
+    if (!catalog || processing) return;
+    setProcessing(true);
+    setError('');
+    setJobResult(null);
+    try {
+      const submitted = await queueNisarProcessing({
+        observation1: catalog.observations[0].granule_id,
+        observation2: catalog.observations[1].granule_id,
+        polarizations: [polarization],
+        aoiBbox: catalog.study_area.bbox_wgs84,
+      });
+      let status = await getNisarJob(submitted.job_id);
+      setJobStatus(status);
+      while (status.status !== 'completed' && status.status !== 'failed') {
+        await new Promise((resolve) => setTimeout(resolve, 600));
+        status = await getNisarJob(submitted.job_id);
+        setJobStatus(status);
+      }
+      if (status.status === 'failed') throw new Error(status.error || 'NISAR processing failed.');
+      setJobResult((await getNisarJobResults(submitted.job_id)).result);
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setProcessing(false);
+    }
+  }
 
   return (
     <main className="page nisar-case-study">
@@ -122,6 +153,10 @@ export default function NisarBengaluruView({ onBack }) {
               <p className="muted">
                 Supporting land-cover data: {catalog.context_status.external_land_cover_data_loaded ? 'loaded' : 'not verified in repository'}.
               </p>
+              <button className="primary-button" type="button" onClick={runProcessing} disabled={processing}>
+                {processing ? `Processing ${jobStatus?.status || 'queued'}…` : 'Run local NISAR analysis'} <span>→</span>
+              </button>
+              {jobResult && <p className="muted">Job complete: {jobResult.processing?.answer || 'candidate analysis returned.'}</p>}
             </aside>
           </div>
           <section className="nisar-metadata-panel">

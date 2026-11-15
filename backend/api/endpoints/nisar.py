@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel
 from rasterio.warp import transform_geom
 
@@ -17,6 +17,9 @@ from backend.api.upload import persist_upload
 from backend.preprocessing.nisar_reader import NISARProductReader
 from backend.preprocessing.nisar_search import search_nisar_granules
 from backend.validation.nisar_validator import NISARValidator
+from backend.api.auth import current_user
+from backend.api.nisar_jobs import create_nisar_job, get_nisar_job
+from backend.services.nisar_processing import NISARProcessRequest
 
 logger = logging.getLogger("terrapulse.api.nisar")
 router = APIRouter(prefix="/nisar", tags=["NISAR Earth Observation"])
@@ -38,6 +41,51 @@ class SynthesizeRequest(BaseModel):
     with_flood: bool = True
     width: int = 256
     height: int = 256
+
+
+@router.post("/process", status_code=status.HTTP_202_ACCEPTED)
+async def process_nisar_observations(
+    request: NISARProcessRequest,
+    owner: str = Depends(current_user),
+):
+    """Queue processing for two locally available, real NISAR observations."""
+    job_id = create_nisar_job(request, owner)
+    return {
+        "job_id": job_id,
+        "status": "queued",
+        "message": "NISAR processing queued. Poll the job status endpoint for progress.",
+    }
+
+
+@router.get("/jobs/{job_id}", status_code=status.HTTP_200_OK)
+async def nisar_job_status(job_id: str, owner: str = Depends(current_user)):
+    """Return owned NISAR processing status, progress, and failure details."""
+    job = get_nisar_job(job_id, owner)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="NISAR job not found.")
+    return job
+
+
+@router.get("/jobs/{job_id}/results", status_code=status.HTTP_200_OK)
+async def nisar_job_results(job_id: str, owner: str = Depends(current_user)):
+    """Return results only after an owned NISAR job has completed."""
+    job = get_nisar_job(job_id, owner)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="NISAR job not found.")
+    if job["status"] == "failed":
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=job.get("error"))
+    if job["status"] != "completed":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="NISAR job is not complete.")
+    return {"job_id": job_id, "status": job["status"], "result": job.get("result")}
+
+
+@router.get("/jobs/{job_id}/trace", status_code=status.HTTP_200_OK)
+async def nisar_job_trace(job_id: str, owner: str = Depends(current_user)):
+    """Return the auditable execution trace for an owned NISAR job."""
+    job = get_nisar_job(job_id, owner)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="NISAR job not found.")
+    return {"job_id": job_id, "status": job["status"], "trace": job.get("trace", [])}
 
 
 @router.get("/bengaluru/case-study", status_code=status.HTTP_200_OK)
@@ -103,6 +151,28 @@ async def get_bengaluru_case_study():
         "area_summary": area_summary,
         "grid_validation": grid_validation,
         "context_status": context_status,
+        "external_evidence": [
+            {
+                "source": "Copernicus Sentinel-2",
+                "purpose": "Optical vegetation, water, and built-surface context",
+                "status": "not_verified",
+            },
+            {
+                "source": "NASA GPM IMERG",
+                "purpose": "Coarse precipitation context",
+                "status": "not_verified",
+            },
+            {
+                "source": "NASA SMAP",
+                "purpose": "Coarse soil-moisture context",
+                "status": "not_verified",
+            },
+            {
+                "source": "OpenStreetMap",
+                "purpose": "Buildings, roads, and infrastructure context",
+                "status": "not_verified",
+            },
+        ],
         "assets": {
             "hh_candidates": "/api/v1/nisar/assets/change_analysis/geospatial_interpretation/hh_candidate_change_regions_epsg32643.geojson",
             "hv_candidates": "/api/v1/nisar/assets/change_analysis/geospatial_interpretation/hv_candidate_change_regions_epsg32643.geojson",

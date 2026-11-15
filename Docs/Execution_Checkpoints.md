@@ -51,3 +51,20 @@ observations are acquired, processed, visualized, and independently evaluated.
 Synthetic products and curated catalog records remain development fixtures and
 must be labelled as such.
 
+## TerraPulse completion update — 15 November 2026
+
+- Phase 1 audit: complete; gaps and preservation constraints are recorded in
+  `Docs/FINAL_IMPLEMENTATION_PLAN.md`.
+- Phases 2–4: generalized real-product processing, owned NISAR jobs, and
+  validated StateGraph handoff implemented.
+- Phase 5: external evidence sources are explicitly represented as
+  `not_verified`; no causal environmental claim is made.
+- Phase 6: existing HH/HV equation, grid, mask, and candidate-screen
+  validation remains authoritative.
+- Phase 7: NISAR report title, candidate evidence, and limitations are carried
+  through the existing PDF generator.
+- Phase 9: AOI processing uses windowed reads; the case-study browser view
+  continues to load compact previews and vector geometry.
+- Phase 10: focused generalized API tests pass; the full regression and
+  frontend build commands remain required release checks.
+
