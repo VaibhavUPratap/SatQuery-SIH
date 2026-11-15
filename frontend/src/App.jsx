@@ -3,6 +3,7 @@ import { ImageOverlay, MapContainer, Rectangle } from 'react-leaflet';
 import L from 'leaflet';
 import { fromBlob } from 'geotiff';
 import { downloadPdf, getJob, login, submitJob } from './api';
+import NisarBengaluruView from './components/NisarBengaluruView';
 import './app.css';
 
 const stages = ['LOGIN', 'DATA', 'VALIDATION', 'CLASSIFICATION', 'ANALYSIS', 'REPORT'];
@@ -250,6 +251,7 @@ export default function App() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [credentials, setCredentials] = useState({ username: '', password: '' });
+  const [showNisarCaseStudy, setShowNisarCaseStudy] = useState(false);
 
   function handleModeChange(modeId) {
     setUploadMode(modeId);
@@ -332,10 +334,16 @@ export default function App() {
           <span>SatQuery <em>AI</em></span>
         </a>
         <span className="system-status"><i /> Remote sensing intelligence platform</span>
+        {stage !== 'LOGIN' && (
+          <button className="secondary-button topbar-case-study" type="button" onClick={() => setShowNisarCaseStudy(true)}>
+            Open Bengaluru NISAR case study
+          </button>
+        )}
       </header>
-      {stage !== 'LOGIN' && <StageNav current={stage} onNavigate={setStage} />}
+      {!showNisarCaseStudy && stage !== 'LOGIN' && <StageNav current={stage} onNavigate={setStage} />}
+      {showNisarCaseStudy && <NisarBengaluruView onBack={() => setShowNisarCaseStudy(false)} />}
 
-      {stage === 'LOGIN' && (
+      {!showNisarCaseStudy && stage === 'LOGIN' && (
         <Page eyebrow="SATQUERY AI / WORKSPACE" title="Remote sensing intelligence platform">
           <form className="login-panel" onSubmit={authenticate}>
             <p>Access the SatQuery analysis workspace.</p>
@@ -352,7 +360,7 @@ export default function App() {
         </Page>
       )}
 
-      {stage === 'DATA' && (
+      {!showNisarCaseStudy && stage === 'DATA' && (
         <Page eyebrow="01 / DATA INGESTION" title="Select modality & query">
           <div className="mode-selector" role="tablist" aria-label="Satellite data modality">
             {MODES.map((mode) => (
@@ -430,9 +438,9 @@ export default function App() {
         </Page>
       )}
 
-      {stage === 'VALIDATION' && <Validation result={result} onBack={() => setStage('DATA')} onNext={() => setStage('CLASSIFICATION')} />}
+      {!showNisarCaseStudy && stage === 'VALIDATION' && <Validation result={result} onBack={() => setStage('DATA')} onNext={() => setStage('CLASSIFICATION')} />}
 
-      {stage === 'CLASSIFICATION' && (
+      {!showNisarCaseStudy && stage === 'CLASSIFICATION' && (
         <Page eyebrow="03 / CLASSIFICATION" title="Task classification" onBack={() => setStage('VALIDATION')}>
           <div className="classification">
             <span className="eyebrow">Detected task</span>
@@ -449,7 +457,7 @@ export default function App() {
         </Page>
       )}
 
-      {stage === 'ANALYSIS' && (
+      {!showNisarCaseStudy && stage === 'ANALYSIS' && (
         <Page eyebrow="04 / ANALYSIS" title="Analysis result" onBack={() => setStage('CLASSIFICATION')}>
           <div className="answer-card">
             <span className="eyebrow">Final answer</span>
@@ -475,7 +483,7 @@ export default function App() {
         </Page>
       )}
 
-      {stage === 'REPORT' && (
+      {!showNisarCaseStudy && stage === 'REPORT' && (
         <Page eyebrow="05 / REPORT" title="Evidence report" onBack={() => setStage('ANALYSIS')}>
           <div className="report-sheet">
             <span className="eyebrow">SatQuery AI / analysis record</span>

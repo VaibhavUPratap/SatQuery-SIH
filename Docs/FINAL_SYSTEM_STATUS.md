@@ -211,3 +211,26 @@ does not claim a confirmed environmental event: no contemporaneous external
 land-cover, optical, rainfall, soil-moisture, water-body, or OSM dataset was
 downloaded and verified. Large HDF5 and derived GeoTIFF files remain local and
 are excluded from Git; reproducible scripts and compact outputs are tracked.
+
+### Interactive case-study integration
+
+The verified Bengaluru case study is available in the application through a
+read-only NISAR case-study view. The backend exposes the validated catalog,
+candidate-region summaries, grid-compatibility status, and compact GeoJSON/PNG
+assets without exposing the raw HDF5 products. The frontend provides an HH/HV
+toggle, an AOI map with candidate regions, area summaries, and dB-difference
+and potential-change previews.
+
+The view preserves the scientific limitations documented above: candidate
+regions are statistical indicators, and no land-cover or environmental event
+is asserted without independently verified supporting data.
+
+### Scientific validation and release readiness
+
+Phase 7 validation confirmed the HH/HV equations, common-valid mask logic,
+grid alignment, candidate-region metadata, and the actual project outputs
+shown by the frontend. The browser case-study view now exposes verified
+granule IDs, sensor/frequency metadata, observation-date previews, candidate
+legend/opacity controls, processing history, and limitations. The module is
+ready for a qualified hackathon demonstration; candidate regions remain
+statistical indicators rather than confirmed environmental events.

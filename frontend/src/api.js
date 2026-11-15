@@ -1,4 +1,12 @@
 const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api/v1';
+export const API_BASE_URL = API;
+
+export async function getBengaluruCaseStudy() {
+  const response = await fetch(`${API}/nisar/bengaluru/case-study`);
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.detail || 'Failed to load the Bengaluru NISAR case study.');
+  return payload;
+}
 
 export async function login(username, password) {
   const response = await fetch(`${API}/auth/login`, {
