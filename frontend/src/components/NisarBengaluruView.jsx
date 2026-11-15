@@ -70,6 +70,17 @@ function downloadText(content, filename, type) {
   URL.revokeObjectURL(url);
 }
 
+async function downloadAsset(path, filename) {
+  const response = await fetch(assetUrl(path));
+  if (!response.ok) throw new Error('The processed preview could not be downloaded.');
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 function candidateCsv(features) {
   const headers = ['region_id', 'polarization', 'direction', 'pixel_count', 'area_hectares', 'mean_difference_db', 'minimum_difference_db', 'maximum_difference_db', 'centroid_latitude', 'centroid_longitude'];
   const rows = features.map(({ properties = {} }) => headers.map((header) => JSON.stringify(properties[header] ?? '')).join(','));
@@ -88,7 +99,7 @@ function LayerControl({ layers, setLayers, polarization, onReset }) {
             <span>{layer.label}</span>
           </label>
           {layer.opacity !== undefined && (
-            <input aria-label={`${layer.label} opacity`} type="range" min="0.1" max="1" step="0.05" value={layer.opacity} onChange={(event) => setLayers((current) => ({ ...current, [key]: { ...layer, opacity: Number(event.target.value) } }))} />
+            <input aria-label={`${layer.label} opacity`} type="range" min="0.1" max="1" step="0.01" value={layer.opacity} onChange={(event) => setLayers((current) => ({ ...current, [key]: { ...layer, opacity: Number(event.target.value) } }))} />
           )}
         </div>
       ))}
@@ -287,10 +298,10 @@ export default function NisarBengaluruView({ onBack }) {
               </div>
               <div className="nisar-panel">
                 <div className="panel-kicker">EXPORT EVIDENCE</div>
-                <div className="export-actions"><button type="button" onClick={exportCandidates} disabled={!candidateGeojson}>GeoJSON</button><button type="button" onClick={() => downloadText(candidateCsv(candidates), `terrapulse-${polarization.toLowerCase()}-candidate-statistics.csv`, 'text/csv')} disabled={!candidates.length}>Stats CSV</button></div>
+                <div className="export-actions"><button type="button" onClick={exportCandidates} disabled={!candidateGeojson}>GeoJSON</button><button type="button" onClick={() => downloadText(candidateCsv(candidates), `terrapulse-${polarization.toLowerCase()}-candidate-statistics.csv`, 'text/csv')} disabled={!candidates.length}>Stats CSV</button><button type="button" onClick={() => downloadAsset(differenceAsset, `terrapulse-${polarization.toLowerCase()}-difference-preview.png`)}>Difference PNG</button></div>
                 <button className="secondary-button" type="button" onClick={runProcessing} disabled={processing}>{processing ? `Processing ${jobStatus?.status || 'queued'}…` : 'Run local analysis'} <span>→</span></button>
                 {jobResult?.agent?.report_pdf_b64 && <button className="secondary-button" type="button" onClick={() => downloadPdf(jobResult.agent.report_pdf_b64, `terrapulse-${polarization.toLowerCase()}-nisar-report.pdf`)}>Scientific PDF <span>↓</span></button>}
-                <small className="muted">Difference GeoTIFF export is unavailable in the verified asset catalog.</small>
+                <small className="muted">Difference GeoTIFF is not present in the verified asset catalog; the processed PNG preview is downloadable above.</small>
               </div>
             </aside>
           </section>

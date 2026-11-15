@@ -357,6 +357,14 @@ export default function App() {
             <button className="primary-button">Secure login <span>→</span></button>
             <small className="disclaimer">Prototype credentials are environment-configured. No government or ISRO authentication is claimed.</small>
           </form>
+          <section className="nisar-home-card">
+            <div>
+              <span className="eyebrow">VERIFIED NISAR CASE STUDY / BENGALURU</span>
+              <h2>Explore the temporal backscatter workspace</h2>
+              <p>Inspect real 29 October and 10 November 2026 NISAR L2 GCOV observations, HH/HV candidate regions, measured statistics, and scientific limitations.</p>
+            </div>
+            <button className="primary-button" type="button" onClick={() => setShowNisarCaseStudy(true)}>Open Bengaluru workspace <span>→</span></button>
+          </section>
         </Page>
       )}
 
