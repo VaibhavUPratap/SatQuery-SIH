@@ -23,6 +23,7 @@ from backend.config import settings
 from backend.models.nisar.change_detection import NISARChangeDetectionModel
 from backend.models.nisar.flood_inundation import NISARFloodInundationModel
 from backend.preprocessing.nisar_reader import NISARProductReader
+from backend.services.external_evidence import inspect_external_evidence
 from backend.validation.nisar_validator import NISARValidator
 
 
@@ -169,9 +170,16 @@ class NISARProcessingService:
                 driver="GTiff",
                 compress="deflate",
             )
+            if window.width >= 256 and window.height >= 256:
+                profile.update(tiled=True, blockxsize=256, blockysize=256)
             target = output_dir / path.name
             with rasterio.open(target, "w", **profile) as destination:
                 destination.write(source.read(window=window))
+                if destination.width >= 256 and destination.height >= 256:
+                    levels = [level for level in (2, 4, 8, 16) if destination.width // level >= 32 and destination.height // level >= 32]
+                    if levels:
+                        destination.build_overviews(levels, rasterio.enums.Resampling.average)
+                        destination.update_tags(ns="rio_overview", resampling="average")
         return target
 
     def _extract_hdf5_aoi(self, path: Path, polarization: str, bbox: list[float], output_dir: Path) -> Path:
@@ -212,13 +220,22 @@ class NISARProcessingService:
                 "nodata": np.nan,
                 "compress": "deflate",
             }
+            if data.shape[1] >= 256 and data.shape[0] >= 256:
+                profile.update(tiled=True, blockxsize=256, blockysize=256)
             target = output_dir / f"{path.stem}_{polarization}_aoi.tif"
             with rasterio.open(target, "w", **profile) as destination:
                 destination.write(data, 1)
+                if destination.width >= 256 and destination.height >= 256:
+                    levels = [level for level in (2, 4, 8, 16) if destination.width // level >= 32 and destination.height // level >= 32]
+                    if levels:
+                        destination.build_overviews(levels, rasterio.enums.Resampling.average)
+                        destination.update_tags(ns="rio_overview", resampling="average")
         return target
 
     def process(self, request: NISARProcessRequest) -> dict[str, Any]:
         """Execute a validated real-product workflow synchronously for a job worker."""
+        if request.analysis_type == "flood" and "HHHH" not in request.polarizations:
+            raise NISARProcessError("Flood analysis requires the HH polarization.")
         path_1 = self.resolve_observation(request.observation_1)
         path_2 = self.resolve_observation(request.observation_2)
         compatibility = self._validate_pair(path_1, path_2, request.polarizations)
@@ -264,6 +281,11 @@ class NISARProcessingService:
                     results[polarization] = result
 
             primary = results.get(requested[0]) or results["flood"]
+            external_evidence = inspect_external_evidence(
+                request.parameters.get("external_sources"),
+                request.aoi_bbox,
+                self.allowed_roots,
+            )
             return {
                 "status": "success",
                 "analysis_type": request.analysis_type,
@@ -285,6 +307,7 @@ class NISARProcessingService:
                 "changed_area_hectares": primary.get("changed_area_hectares"),
                 "evidence": {
                     "scientific_status": "candidate_radar_backscatter_anomaly",
+                    "external_evidence": external_evidence,
                     "limitations": [
                         "Candidate regions are not independently confirmed flooding, construction, urbanization, or deforestation.",
                         "Physical interpretation requires contemporaneous independent evidence.",

@@ -2,11 +2,12 @@
 
 ## Current Progress Snapshot
 
-**Overall status: COMPLETE — Phases 0–9 implemented and integrated.**
+**Overall status: COMPLETE — Phases 0–11 implemented and integrated, with
+external-data and independent-label limitations explicitly preserved.**
 
 Last verification:
 
-- Backend regression suite: **75 passed**.
+- Backend regression suite: **79 passed**.
 - Frontend production build: **successful** with `npm --prefix frontend run build`.
 - FastAPI health smoke test: **200 OK** (`TerraPulse AI API`).
 - Scientific limitation retained: NISAR outputs are candidate radar-backscatter anomalies, not independently confirmed environmental events.
@@ -19,12 +20,12 @@ Progress is updated phase-by-phase below. A phase is marked complete only when i
 - **Phase 2 — Real NISAR processing API:** complete and covered by focused API tests.
 - **Phase 3 — NISAR jobs:** complete with owned status, results, trace, progress, and failure handling.
 - **Phase 4 — LangGraph:** complete foundation; validated processing results enter the existing typed graph.
-- **Phase 5 — Corroboration:** limitation-aware source metadata added; external data remains unverified.
+- **Phase 5 — Corroboration:** local raster/GeoJSON source inspection added with source dates, CRS, dimensions, and AOI coverage; unsupplied sources remain unverified.
 - **Phase 6 — Scientific validation:** complete for the verified Bengaluru HH/HV case study.
 - **Phase 7 — Reports:** NISAR report branding and candidate-evidence limitations integrated.
-- **Phase 8 — Frontend:** verified Bengaluru case-study UI remains operational; generalized job controls are API-first.
-- **Phase 9 — Raster performance:** AOI window reads and compact browser assets are in use.
-- **Phase 10 — Testing:** baseline and focused NISAR tests pass; full release checks are recorded in the final report.
+- **Phase 8 — Frontend:** verified Bengaluru case-study UI exposes job progress, execution trace, and evidence-report download.
+- **Phase 9 — Raster performance:** AOI window reads, tiled temporary GeoTIFFs, overviews, and compact browser assets are in use.
+- **Phase 10 — Testing:** baseline, failure-path, external-evidence, LangGraph, report, and focused NISAR tests pass.
 - **Phase 11 — Documentation:** final API, workflow, limitations, demo, plan, and implementation reports added.
 
 ## Completed Milestones

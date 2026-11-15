@@ -106,6 +106,10 @@ input contract.
 existing local HDF5 products under `datasets/` (or `NISAR_DATA_ROOT`) and
 validated GeoTIFF extracts. It does not download or synthesize products.
 The response is a job ID; poll the status, results, and trace endpoints.
+Job progress includes validation, preprocessing, analysis, and evidence
+generation. Optional local corroboration files can be listed under
+`parameters.external_sources`; their date, CRS, and AOI coverage are reported
+without treating correlation as causal evidence.
 NISAR candidate anomalies must not be described as independently confirmed
 flooding, construction, urbanization, deforestation, or another environmental
 event.

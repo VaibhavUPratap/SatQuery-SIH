@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { GeoJSON, MapContainer, TileLayer, Rectangle, useMap } from 'react-leaflet';
-import { API_BASE_URL, getBengaluruCaseStudy, getNisarJob, getNisarJobResults, queueNisarProcessing } from '../api';
+import { API_BASE_URL, downloadPdf, getBengaluruCaseStudy, getNisarJob, getNisarJobResults, getNisarJobTrace, queueNisarProcessing } from '../api';
 
 function FitBounds({ bounds }) {
   const map = useMap();
@@ -24,6 +24,7 @@ export default function NisarBengaluruView({ onBack }) {
   const [processing, setProcessing] = useState(false);
   const [jobStatus, setJobStatus] = useState(null);
   const [jobResult, setJobResult] = useState(null);
+  const [jobTrace, setJobTrace] = useState([]);
 
   useEffect(() => {
     let active = true;
@@ -63,6 +64,7 @@ export default function NisarBengaluruView({ onBack }) {
     setProcessing(true);
     setError('');
     setJobResult(null);
+    setJobTrace([]);
     try {
       const submitted = await queueNisarProcessing({
         observation1: catalog.observations[0].granule_id,
@@ -79,6 +81,7 @@ export default function NisarBengaluruView({ onBack }) {
       }
       if (status.status === 'failed') throw new Error(status.error || 'NISAR processing failed.');
       setJobResult((await getNisarJobResults(submitted.job_id)).result);
+      setJobTrace((await getNisarJobTrace(submitted.job_id)).trace || []);
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -157,6 +160,19 @@ export default function NisarBengaluruView({ onBack }) {
                 {processing ? `Processing ${jobStatus?.status || 'queued'}…` : 'Run local NISAR analysis'} <span>→</span>
               </button>
               {jobResult && <p className="muted">Job complete: {jobResult.processing?.answer || 'candidate analysis returned.'}</p>}
+              {jobResult?.agent?.report_pdf_b64 && (
+                <button className="secondary-button" type="button" onClick={() => downloadPdf(jobResult.agent.report_pdf_b64, `terrapulse-${polarization.toLowerCase()}-nisar-report.pdf`)}>
+                  Download evidence report <span>↓</span>
+                </button>
+              )}
+              {jobTrace.length > 0 && (
+                <details className="nisar-trace">
+                  <summary>Execution trace ({jobTrace.length} steps)</summary>
+                  <ul>
+                    {jobTrace.map((step, index) => <li key={`${step.node || 'step'}-${index}`}><strong>{step.node || 'workflow step'}</strong> · {step.status || 'recorded'}</li>)}
+                  </ul>
+                </details>
+              )}
             </aside>
           </div>
           <section className="nisar-metadata-panel">

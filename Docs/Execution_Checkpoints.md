@@ -40,8 +40,8 @@ and never substituted with fabricated benchmark claims.
 - C4 — partially complete: metric runner executes against the available 10-row manifest, but a representative registry benchmark and adapted-versus-generic comparison remain required.
 - C5 — implemented: React/Leaflet dashboard now includes upload, paired-image, result, trace, report, and evidence-view workflows; production build requires Node/npm dependencies, unavailable in the current environment.
 - C6 — partially complete: selected training data, adapter checkpoint, GPU run, and API/UI integration are present; a larger real RSVQA/BigEarthNet rehearsal remains.
-- C7 — in progress: TerraPulse/NISAR foundation added, including HDF5 reading, metadata and temporal-pair validation, CMR/ASF-style search, radar change detection, flood analysis, preview generation, and initial frontend/API integration.
-- C8 — pending: acquire and verify real NISAR products for one study area, run a two-date end-to-end case study, connect the workflow to the main agent and report UI, and evaluate against independent reference data.
+- C7 — complete: TerraPulse/NISAR foundation, generalized local-product processing, owned jobs, StateGraph handoff, report integration, frontend controls, and scientific limitations are implemented.
+- C8 — complete for the available evidence: the Bengaluru two-date case study is connected end-to-end and optional local corroboration adapters are available. Independent event-level labels and contemporaneous ancillary data remain deployment dependencies and are not fabricated.
 
 ## Current overall interpretation
 
@@ -56,15 +56,15 @@ must be labelled as such.
 - Phase 1 audit: complete; gaps and preservation constraints are recorded in
   `Docs/FINAL_IMPLEMENTATION_PLAN.md`.
 - Phases 2–4: generalized real-product processing, owned NISAR jobs, and
-  validated StateGraph handoff implemented.
-- Phase 5: external evidence sources are explicitly represented as
-  `not_verified`; no causal environmental claim is made.
+  validated StateGraph handoff implemented and tested.
+- Phase 5: local raster/GeoJSON corroboration inspection records source date,
+  CRS, dimensions, and AOI coverage; unsupported sources remain `not_verified`.
 - Phase 6: existing HH/HV equation, grid, mask, and candidate-screen
   validation remains authoritative.
 - Phase 7: NISAR report title, candidate evidence, and limitations are carried
   through the existing PDF generator.
-- Phase 9: AOI processing uses windowed reads; the case-study browser view
-  continues to load compact previews and vector geometry.
-- Phase 10: focused generalized API tests pass; the full regression and
-  frontend build commands remain required release checks.
+- Phase 9: AOI processing uses windowed reads, tiled outputs, and overviews;
+  the case-study browser view continues to load compact previews and vector geometry.
+- Phase 10: generalized API, failure-path, external-evidence, LangGraph, report,
+  full regression, and frontend build checks pass.
 

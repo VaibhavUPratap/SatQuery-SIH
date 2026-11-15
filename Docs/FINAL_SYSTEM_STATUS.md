@@ -245,5 +245,12 @@ extraction, and passes validated results through the existing typed LangGraph
 workflow.
 
 External optical, rainfall, soil-moisture, land-cover, and OSM sources are
-represented as unavailable until independently downloaded and checked. NISAR
-candidate anomalies must not be presented as confirmed environmental events.
+represented as `not_verified` by default. Deployments can supply local
+GeoTIFF/GeoJSON corroboration through `parameters.external_sources`; the
+workflow records source metadata and AOI coverage without making causal claims.
+NISAR candidate anomalies must not be presented as confirmed environmental
+events.
+
+The generalized job workflow now exposes `preprocessing` and uses windowed,
+tiled/overview-aware AOI outputs. The Bengaluru frontend also displays job
+progress, execution trace, and generated evidence-report download controls.

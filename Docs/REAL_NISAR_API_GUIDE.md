@@ -40,8 +40,27 @@ The response contains a `job_id`. Poll:
 - `GET /api/v1/nisar/jobs/{job_id}/results`
 - `GET /api/v1/nisar/jobs/{job_id}/trace`
 
-Job status is one of `queued`, `validating`, `analysing`,
+Job status is one of `queued`, `validating`, `preprocessing`, `analysing`,
 `generating_evidence`, `completed`, or `failed`.
+
+Optional local corroboration can be supplied through `parameters.external_sources`:
+
+```json
+{
+  "external_sources": [
+    {
+      "source": "Sentinel-2",
+      "path": "context/sentinel2_20261109.tif",
+      "source_date": "2026-11-09",
+      "source_url": "https://dataspace.copernicus.eu/"
+    }
+  ]
+}
+```
+
+The source must be inside `datasets/` or `NISAR_DATA_ROOT`. The result records
+the original filename, source date/URL, CRS, dimensions, and AOI coverage.
+Unavailable standard sources remain explicitly marked `not_verified`.
 
 ## Scientific interpretation
 

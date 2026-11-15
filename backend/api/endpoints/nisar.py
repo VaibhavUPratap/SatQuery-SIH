@@ -49,7 +49,10 @@ async def process_nisar_observations(
     owner: str = Depends(current_user),
 ):
     """Queue processing for two locally available, real NISAR observations."""
-    job_id = create_nisar_job(request, owner)
+    try:
+        job_id = create_nisar_job(request, owner)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(exc)) from exc
     return {
         "job_id": job_id,
         "status": "queued",

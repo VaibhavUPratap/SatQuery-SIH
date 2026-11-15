@@ -9,10 +9,11 @@ from datetime import datetime, timezone
 from typing import Any
 
 from backend.agent.graph import agent_graph
+from backend.config import settings
 from backend.services.nisar_processing import NISARProcessRequest, NISARProcessingService
 
 logger = logging.getLogger("terrapulse.api.nisar_jobs")
-_executor = ThreadPoolExecutor(max_workers=2)
+_executor = ThreadPoolExecutor(max_workers=settings.MAX_CONCURRENT_JOBS)
 _jobs: dict[str, dict[str, Any]] = {}
 _lock = threading.Lock()
 _service = NISARProcessingService()
@@ -25,6 +26,9 @@ def _now() -> str:
 def create_nisar_job(request: NISARProcessRequest, owner: str) -> str:
     job_id = str(uuid.uuid4())
     with _lock:
+        active_jobs = sum(job["status"] in {"queued", "validating", "preprocessing", "analysing", "generating_evidence"} for job in _jobs.values())
+        if active_jobs >= settings.MAX_QUEUED_JOBS:
+            raise RuntimeError("NISAR processing queue is full; retry later.")
         _jobs[job_id] = {
             "job_id": job_id,
             "owner": owner,
@@ -48,8 +52,9 @@ def _update(job_id: str, **values: Any) -> None:
 def _run_nisar_job(job_id: str, request: NISARProcessRequest) -> None:
     try:
         _update(job_id, status="validating", progress=15, trace=[{"node": "resolve_and_validate", "status": "running"}])
+        _update(job_id, status="preprocessing", progress=35, trace=[{"node": "resolve_and_validate", "status": "passed"}, {"node": "preprocess_aoi", "status": "running"}])
         service_result = _service.process(request)
-        _update(job_id, status="analysing", progress=60, trace=[{"node": "resolve_and_validate", "status": "passed"}])
+        _update(job_id, status="analysing", progress=60, trace=[{"node": "resolve_and_validate", "status": "passed"}, {"node": "preprocess_aoi", "status": "passed"}, {"node": "specialist_analysis", "status": "running"}])
 
         # Re-run through the existing typed StateGraph so the job has the same
         # routing, specialist, evidence, and report semantics as other analyses.

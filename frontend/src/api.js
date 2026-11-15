@@ -106,6 +106,15 @@ export async function getNisarJobResults(jobId, token) {
   return payload;
 }
 
+export async function getNisarJobTrace(jobId, token) {
+  const response = await fetch(`${API}/nisar/jobs/${jobId}/trace`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.detail || 'Failed to read NISAR execution trace.');
+  return payload;
+}
+
 export async function runAgent({ primary, comparison, query, analysisType = 'auto', threadId, token }) {
   const body = new FormData();
   body.append('file_1', primary);

@@ -142,6 +142,7 @@ def _build_context(title: str, result: Dict[str, Any]) -> Dict[str, Any]:
         "class_coverage": result.get("class_coverage") or {},
         "pair_meta": result.get("pair_metadata") or {},
         "evidence": evidence,
+        "external_evidence": evidence.get("external_evidence") if isinstance(evidence, dict) else None,
         "trace_steps": steps or [],
         "thread_id": result.get("thread_id") or "session_default",
     }
@@ -596,12 +597,20 @@ class SatQueryPDFReport(FPDF):
             section_title(self, "NISAR Candidate Evidence", top_gap=2.0)
             evidence = ctx["evidence"]
             limitations = evidence.get("limitations") if isinstance(evidence, dict) else None
+            external = ctx.get("external_evidence") or {}
+            sources = (external.get("sources") or []) if isinstance(external, dict) else []
+            available = [str(item.get("source")) for item in sources if item.get("status") == "available"]
             rows = [
                 ("Interpretation status", "Candidate radar-backscatter anomaly; not a confirmed event"),
-                ("Independent corroboration", "Unavailable in the verified repository"),
+                (
+                    "Independent corroboration",
+                    ", ".join(available) if available else "No verified supporting dataset supplied",
+                ),
             ]
             if limitations:
                 rows.append(("Primary limitation", str(limitations[0])))
+            if isinstance(external, dict) and external.get("causal_interpretation"):
+                rows.append(("Causal interpretation", str(external["causal_interpretation"])))
             kv_table(self, rows, row_h=5.4)
 
         else:

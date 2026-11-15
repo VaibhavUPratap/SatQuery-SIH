@@ -72,3 +72,23 @@ def test_process_contract_rejects_unsupported_product_and_hides_unknown_jobs():
         )
         assert response.status_code == 422
         assert client.get("/api/v1/nisar/jobs/not-a-job").status_code == 404
+
+
+def test_failed_job_exposes_failure_and_trace():
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/v1/nisar/process",
+            json={
+                "observation_1": "missing-1.h5",
+                "observation_2": "missing-2.h5",
+                "product_type": "GCOV",
+            },
+        )
+        assert response.status_code == 202
+        job = _wait_for_job(client, response.json()["job_id"])
+        assert job["status"] == "failed"
+        assert job["error"]
+        trace = client.get(f"/api/v1/nisar/jobs/{job['job_id']}/trace")
+        assert trace.status_code == 200
+        assert trace.json()["trace"][0]["node"] == "resolve_and_validate"
+        assert client.get(f"/api/v1/nisar/jobs/{job['job_id']}/results").status_code == 422
