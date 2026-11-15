@@ -97,7 +97,9 @@ async def get_bengaluru_case_study():
     summary_path = CASE_STUDY_CONTEXT / "candidate_area_summary.csv"
     compatibility_path = CASE_STUDY_ROOT / "validation_grid_compatibility.json"
     context_path = CASE_STUDY_CONTEXT / "data_context_status.json"
-    required = (summary_path, compatibility_path, context_path)
+    change_summary_path = CASE_STUDY_ANALYSIS / "change_summary.json"
+    temporal_statistics_path = CASE_STUDY_ANALYSIS / "temporal_statistics.csv"
+    required = (summary_path, compatibility_path, context_path, change_summary_path, temporal_statistics_path)
     if not all(path.is_file() for path in required):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -110,6 +112,10 @@ async def get_bengaluru_case_study():
         grid_validation = json.load(handle)
     with context_path.open(encoding="utf-8") as handle:
         context_status = json.load(handle)
+    with change_summary_path.open(encoding="utf-8") as handle:
+        change_summary = json.load(handle)
+    with temporal_statistics_path.open(newline="", encoding="utf-8") as handle:
+        temporal_statistics = list(csv.DictReader(handle))
 
     return {
         "study_area": {
@@ -154,6 +160,8 @@ async def get_bengaluru_case_study():
         "area_summary": area_summary,
         "grid_validation": grid_validation,
         "context_status": context_status,
+        "change_summary": change_summary,
+        "temporal_statistics": temporal_statistics,
         "external_evidence": [
             {
                 "source": "Copernicus Sentinel-2",
@@ -189,6 +197,8 @@ async def get_bengaluru_case_study():
             "hh_preview_20261110": "/api/v1/nisar/assets/previews/nisar_hh_20261110_preview.png",
             "hv_preview_20261029": "/api/v1/nisar/assets/previews/nisar_hv_20261029_preview.png",
             "hv_preview_20261110": "/api/v1/nisar/assets/previews/nisar_hv_20261110_preview.png",
+            "hh_difference_geotiff": None,
+            "hv_difference_geotiff": None,
         },
     }
 
